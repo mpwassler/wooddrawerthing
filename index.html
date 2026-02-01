@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wood Cut Planner</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <h1>Wood Cut Planner</h1>
+        <div class="controls">
+            <div class="mode-switcher">
+                <button id="draw-mode-btn" class="active">Draw</button>
+                <button id="select-mode-btn">Select</button>
+            </div>
+            <div class="divider"></div>
+            <label for="measurement-input">Measurement:</label>
+            <input type="text" id="measurement-input" placeholder="e.g., 8' 2 1/2&quot;">
+            <button id="apply-measurement">Apply</button>
+            <button id="reset-drawing">Reset</button>
+        </div>
+        <div style="position: relative; width: 100%; height: 100%;">
+            <canvas id="drawing-canvas" style="position: absolute; top: 0; left: 0; z-index: 0;"></canvas>
+            <canvas id="overlay-canvas" style="position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none;"></canvas>
+        </div>
+
+        <!-- Properties Panel -->
+        <div id="properties-panel" class="properties-panel hidden">
+            <h3>Shape Properties</h3>
+            <div class="prop-group">
+                <label>Name</label>
+                <input type="text" id="prop-name" placeholder="e.g. Left Leg">
+            </div>
+            <div class="prop-group">
+                <label>Thickness (drag to adjust)</label>
+                <input type="text" id="prop-thickness" class="draggable-input" value="3/4&quot;" readonly>
+            </div>
+            <div class="prop-group">
+                <label>Total Length</label>
+                <span id="prop-length">0"</span>
+            </div>
+            
+            <div class="divider" style="margin: 15px 0; height: 1px; width: 100%;"></div>
+            
+            <div class="prop-group">
+                <label>Joinery (Layers)</label>
+                <div style="display: flex; gap: 5px;">
+                    <button id="add-cutout-btn" style="flex: 1; font-size: 0.85em; padding: 6px; background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;">- Cutout</button>
+                    <button id="add-tenon-btn" style="flex: 1; font-size: 0.85em; padding: 6px; background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9;">+ Tenon</button>
+                </div>
+                <div id="joinery-list" style="margin-top: 10px; font-size: 0.85em; color: #666;"></div>
+            </div>
+
+            <div class="prop-group">
+                <label>JSON Data (Export/Import)</label>
+                <textarea id="prop-json" style="width: 100%; height: 80px; font-size: 0.7em; font-family: monospace; border: 1px solid #ddd; border-radius: 4px; padding: 5px; resize: vertical;"></textarea>
+            </div>
+
+            <button id="view-3d-btn" class="view-3d-btn" disabled>View in 3D</button>
+            <button id="prop-delete" class="delete-btn">Delete Shape</button>
+        </div>
+
+        <!-- 3D Modal -->
+        <div id="modal-3d" class="modal hidden">
+            <div class="modal-content">
+                <button id="close-3d-btn" class="close-btn">&times;</button>
+                <canvas id="canvas-3d"></canvas>
+            </div>
+        </div>
+
+        <!-- Boolean Operations Menu -->
+        <div id="boolean-menu" class="context-menu hidden" style="position: absolute; z-index: 100; background: #fff; border: 1px solid #999; box-shadow: 0 4px 15px rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; display: flex; flex-direction: column; gap: 8px; min-width: 120px;">
+            <button id="bool-union-btn" style="padding: 8px 12px; cursor: pointer; background: #e8f5e9; color: #1b5e20; border: 1px solid #a5d6a7; border-radius: 4px; font-weight: bold; text-align: left;">Union (Add)</button>
+            <button id="bool-subtract-btn" style="padding: 8px 12px; cursor: pointer; background: #ffebee; color: #b71c1c; border: 1px solid #ef9a9a; border-radius: 4px; font-weight: bold; text-align: left;">Subtract</button>
+            <button id="bool-cancel-btn" style="padding: 8px 12px; cursor: pointer; background: #f5f5f5; color: #333; border: 1px solid #bdbdbd; border-radius: 4px; font-weight: bold; text-align: left;">Cancel</button>
+        </div>
+    </div>
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
