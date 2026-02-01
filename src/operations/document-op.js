@@ -5,6 +5,8 @@
 
 import { STATE } from '../core/state.js';
 import { DOM } from '../core/dom.js';
+import { Geometry } from '../utils/geometry.js';
+import { CONFIG } from '../core/config.js';
 
 export const DocumentOp = {
     updateJSONExport: () => {
@@ -25,8 +27,10 @@ export const DocumentOp = {
             // Ensure ID is preserved if not provided in JSON
             if (!imported.id) imported.id = shape.id;
             Object.assign(shape, imported);
-            // After import, we might need a full UI refresh which is usually handled by the main loop
-            // but we call the panel update to be sure.
+            
+            // Recalculate dimensions
+            Geometry.recalculateSideLengths(shape.points, CONFIG.SCALE_PIXELS_PER_INCH);
+            
             return true; 
         } catch (e) {
             DOM.propJson.style.borderColor = 'red';

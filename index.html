@@ -7,7 +7,16 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-container">
+    <div class="app-container" style="width: 100%; height: 100%; position: relative;">
+        <!-- Projects Side Panel (Floating) -->
+        <div id="side-panel" class="side-panel">
+            <h2 style="font-size: 1.1em; margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">Projects</h2>
+            <div id="project-list" style="flex: 1; overflow-y: auto;">
+                <!-- Projects rendered here -->
+            </div>
+            <button id="add-project-btn" style="margin-top: 10px; background: #28a745; color: white;">+ New Project</button>
+        </div>
+
         <h1>Wood Cut Planner</h1>
         <div class="controls">
             <div class="mode-switcher">

@@ -35,4 +35,8 @@ export const DOM = {
     btnBoolUnion: document.getElementById('bool-union-btn'),
     btnBoolSubtract: document.getElementById('bool-subtract-btn'),
     btnBoolCancel: document.getElementById('bool-cancel-btn'),
+
+    // Projects
+    projectList: document.getElementById('project-list'),
+    btnAddProject: document.getElementById('add-project-btn')
 };

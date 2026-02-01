@@ -7,9 +7,17 @@ export const STATE = {
     // --- Document Data (The Blueprint) ---
     // This is what gets saved/loaded as JSON
     document: {
-        name: "New Project",
-        version: "1.0",
-        shapes: [] // Array of Shape objects
+        projects: [], // Array of { id, name, shapes }
+        currentProjectId: null,
+        get currentProject() {
+            return this.projects.find(p => p.id === this.currentProjectId);
+        },
+        get shapes() {
+            return this.currentProject ? this.currentProject.shapes : [];
+        },
+        set shapes(val) {
+            if (this.currentProject) this.currentProject.shapes = val;
+        }
     },
 
     // --- UI & View State (Transient) ---

@@ -7,12 +7,16 @@ import { STATE } from './core/state.js';
 import { DOM } from './core/dom.js';
 import { Input } from './systems/input.js';
 import { ThreedOp } from './operations/threed-op.js';
+import { ProjectOp } from './operations/project-op.js';
 import { ViewController } from './systems/view-controller.js';
 import { CanvasRenderer } from './renderers/canvas-renderer.js';
 import { WebGLRenderer } from './renderers/webgl-renderer.js';
 
-function init() {
-    // 1. Initialize Renderers
+async function init() {
+    // 1. Initialize Storage & Projects
+    await ProjectOp.init();
+
+    // 2. Initialize Renderers
     STATE.renderer = new WebGLRenderer(DOM.canvas);
     STATE.renderer.setMode('2D'); 
     
@@ -26,16 +30,16 @@ function init() {
     
     STATE.overlay = new CanvasRenderer(DOM.overlay);
     
-    // 2. Initial Layout
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    // 3. Initial Layout
+    const w = DOM.canvas.parentElement.clientWidth;
+    const h = DOM.canvas.parentElement.clientHeight;
     STATE.renderer.resize(w, h);
     STATE.overlay.resize(w, h);
     STATE.renderer3D.resize(w * 0.9, h * 0.9); 
     
     STATE.ui.view.pan = { x: w / 2, y: h / 2 };
 
-    // 3. Bind Event Listeners
+    // 4. Bind Event Listeners
     DOM.canvas.addEventListener('click', Input.handleCanvasClick);
     DOM.canvas.addEventListener('mousedown', Input.handleMouseDown);
     DOM.canvas.addEventListener('wheel', Input.handleWheel);
@@ -51,8 +55,8 @@ function init() {
     window.addEventListener('mousemove', Input.handleMouseMove);
     window.addEventListener('mouseup', Input.handleMouseUp);
     window.addEventListener('resize', () => {
-        const ww = window.innerWidth;
-        const hh = window.innerHeight;
+        const ww = DOM.canvas.parentElement.clientWidth;
+        const hh = DOM.canvas.parentElement.clientHeight;
         STATE.renderer.resize(ww, hh);
         STATE.overlay.resize(ww, hh);
         if (STATE.ui.is3DOpen) {
@@ -80,10 +84,19 @@ function init() {
     DOM.btnBoolUnion.addEventListener('click', Input.handleBooleanUnion);
     DOM.btnBoolSubtract.addEventListener('click', Input.handleBooleanSubtract);
     DOM.btnBoolCancel.addEventListener('click', Input.hideBooleanMenu);
+
+    // Project Management
+    DOM.btnAddProject.addEventListener('click', () => {
+        const name = prompt("Project Name:");
+        if (name) ProjectOp.createNewProject(name);
+    });
     
-    // 4. Start Main Loop
+    // 5. Start Main Loop
     loop();
 }
+
+let lastSaveTime = 0;
+const SAVE_INTERVAL = 2000; // Auto-save every 2 seconds if changed
 
 function loop() {
     ViewController.render();
@@ -94,6 +107,13 @@ function loop() {
     
     if (STATE.ui.is3DOpen && STATE.renderer3D && STATE.renderer3D.render) {
         STATE.renderer3D.render();
+    }
+
+    // Auto-save logic
+    const now = Date.now();
+    if (now - lastSaveTime > SAVE_INTERVAL) {
+        ProjectOp.saveCurrentProject();
+        lastSaveTime = now;
     }
     
     requestAnimationFrame(loop);
