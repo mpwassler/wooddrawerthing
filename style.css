@@ -200,11 +200,12 @@ button:hover {
 }
 
 .view-3d-btn {
-    width: 100%;
     background-color: #28a745;
     color: white;
-    margin-top: 15px;
-    margin-bottom: 10px;
+}
+
+.view-3d-btn:hover {
+    background-color: #218838;
 }
 
 .view-3d-btn:disabled {

@@ -6,6 +6,7 @@
 import { STATE } from './core/state.js';
 import { DOM } from './core/dom.js';
 import { Input } from './systems/input.js';
+import { ThreedOp } from './operations/threed-op.js';
 import { ViewController } from './systems/view-controller.js';
 import { CanvasRenderer } from './renderers/canvas-renderer.js';
 import { WebGLRenderer } from './renderers/webgl-renderer.js';
@@ -17,6 +18,11 @@ function init() {
     
     STATE.renderer3D = new WebGLRenderer(DOM.canvas3D);
     STATE.renderer3D.setMode('3D'); 
+    
+    // Wire up 3D assembly persistence
+    STATE.renderer3D.transformControls.addEventListener('change', () => {
+        ThreedOp.persistTransforms();
+    });
     
     STATE.overlay = new CanvasRenderer(DOM.overlay);
     
@@ -33,6 +39,14 @@ function init() {
     DOM.canvas.addEventListener('click', Input.handleCanvasClick);
     DOM.canvas.addEventListener('mousedown', Input.handleMouseDown);
     DOM.canvas.addEventListener('wheel', Input.handleWheel);
+
+    // 3D Specific events
+    DOM.canvas3D.addEventListener('mousedown', ThreedOp.handleMouseDown);
+    window.addEventListener('keydown', (e) => {
+        if (STATE.ui.is3DOpen) {
+            ThreedOp.handleKeyDown(e);
+        }
+    });
     
     window.addEventListener('mousemove', Input.handleMouseMove);
     window.addEventListener('mouseup', Input.handleMouseUp);

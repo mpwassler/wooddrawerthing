@@ -5,6 +5,7 @@
 
 import * as THREE from 'https://esm.sh/three@0.160.0';
 import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+import { TransformControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/TransformControls.js';
 
 export class WebGLRenderer {
     constructor(canvasElement) {
@@ -44,6 +45,15 @@ export class WebGLRenderer {
         this.controls.dampingFactor = 0.05;
         this.controls.enabled = false; // Disabled in 2D
 
+        // Transform Controls (The assembly gizmo)
+        this.transformControls = new TransformControls(this.cameraPersp, this.canvas);
+        this.scene.add(this.transformControls);
+        
+        // Listen for transform changes to update our internal STATE
+        this.transformControls.addEventListener('dragging-changed', (event) => {
+            this.controls.enabled = !event.value; // Disable orbit while dragging gizmo
+        });
+
         // Lighting (for 3D)
         this.ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
@@ -51,7 +61,6 @@ export class WebGLRenderer {
         this.dirLight.castShadow = true;
         this.scene.add(this.ambientLight);
         this.scene.add(this.dirLight);
-        // Hide lights in 2D? No, they don't affect LineBasicMaterial.
 
         // State for Transforms
         this.transformStack = [];
@@ -68,9 +77,9 @@ export class WebGLRenderer {
         if (mode === '3D') {
             this.activeCamera = this.cameraPersp;
             this.controls.enabled = true;
+            this.transformControls.enabled = true;
+            this.transformControls.visible = true;
             
-            // Calculate center of shapes to target controls?
-            // For now, look at origin
             this.controls.target.set(this.width/2, this.height/2, 0); 
             this.cameraPersp.position.set(this.width/2, this.height/2 + 100, 100);
             this.cameraPersp.lookAt(this.width/2, this.height/2, 0);
@@ -79,7 +88,9 @@ export class WebGLRenderer {
         } else {
             this.activeCamera = this.cameraOrtho;
             this.controls.enabled = false;
-            // Clear 3D meshes when going back to 2D
+            this.transformControls.detach();
+            this.transformControls.enabled = false;
+            this.transformControls.visible = false;
             this.clear3D();
         }
     }
@@ -111,7 +122,6 @@ export class WebGLRenderer {
         this.extrudedMeshes.forEach(mesh => {
             this.scene.remove(mesh);
             if (mesh.geometry) mesh.geometry.dispose();
-            // Don't dispose material as it is cached/shared
         });
         this.extrudedMeshes = [];
     }
@@ -175,7 +185,7 @@ export class WebGLRenderer {
     // --- 2D PRIMITIVES ---
 
     drawGrid(bounds, step, color, lineWidth) {
-        if (this.mode === '3D') return; // Don't draw 2D grid in 3D mode (or maybe draw a ground plane later)
+        if (this.mode === '3D') return;
 
         const startX = Math.floor(bounds.left / step) * step;
         const startY = Math.floor(bounds.top / step) * step;
@@ -233,181 +243,92 @@ export class WebGLRenderer {
     // --- 3D LOGIC ---
 
     render3DScene(shapes) {
-        // Only rebuild scene if shape count changed? 
-        // For prototype, we clear and rebuild every frame which is safe but not performant.
-        // Actually, render3DScene is called every frame.
-        // We should NOT rebuild the geometry every frame. That kills performance.
-        
-        // Hack: We only need to build it once when entering 3D mode, or when shapes change.
-        // But `ViewController.render()` calls this every loop.
-        
-        // Let's check if we already have meshes. If yes, assume they are up to date 
-        // (unless we implement a dirty flag, but let's just build ONCE on mode switch in script.js? 
-        // No, script.js calls this every frame).
-        
-        // Improved Strategy:
-        // We check if `this.extrudedMeshes` is empty. If so, build.
-        // If not, just let them sit there.
-        // Since `setMode('2D')` clears them, this works for switching back and forth.
-        // If the user modifies shapes in 2D, they are cleared.
-        // Wait, if I change thickness in 3D (which I can't yet because UI is hidden), I'd need to rebuild.
-        
-        if (this.extrudedMeshes.length > 0) return; // Already built
+        if (this.extrudedMeshes.length > 0) return;
 
-        // 1. Grid (Ground Plane)
         const grid = new THREE.GridHelper(1000, 100);
-        grid.rotation.x = Math.PI / 2; // Rotate to match X/Y plane
+        grid.rotation.x = Math.PI / 2;
         this.scene.add(grid);
         this.extrudedMeshes.push(grid);
 
-        // 2. Extrude Shapes
-        const scale = 10; // 10 pixels per inch
+        const scale = 10;
         const bounds = new THREE.Box3();
         let hasShapes = false;
         
         shapes.forEach(shapeData => {
             if (!shapeData.closed || shapeData.points.length < 3) return;
 
+            const group = new THREE.Group();
+            group.userData.shapeId = shapeData.id;
+
             const shape = new THREE.Shape();
-            shape.moveTo(shapeData.points[0].x, shapeData.points[0].y);
+            let cx = 0, cy = 0;
+            shapeData.points.forEach(p => { cx += p.x; cy += p.y; });
+            cx /= shapeData.points.length; cy /= shapeData.points.length;
+
+            shape.moveTo(shapeData.points[0].x - cx, shapeData.points[0].y - cy);
             for (let i = 1; i < shapeData.points.length; i++) {
-                shape.lineTo(shapeData.points[i].x, shapeData.points[i].y);
+                shape.lineTo(shapeData.points[i].x - cx, shapeData.points[i].y - cy);
             }
             
-            // Add Holes (Cutouts)
             if (shapeData.cutouts && shapeData.cutouts.length > 0) {
                 const startPt = shapeData.points[0];
-                const scale = 10; // Match global scale (unfortunately duplicated literal here, should pass config)
-                
                 shapeData.cutouts.forEach(c => {
-                    const holePath = new THREE.Path();
-                    // Cutout coords are relative to startPt in inches.
-                    // World X = startPt.x + c.x * scale
-                    const hx = startPt.x + c.x * scale;
-                    const hy = startPt.y + c.y * scale;
-                    const hw = c.w * scale;
-                    const hh = c.h * scale;
-                    
-                    // Define hole path (Counter-Clockwise for holes usually, but Three.js handles simple shapes)
-                    holePath.moveTo(hx, hy);
-                    holePath.lineTo(hx + hw, hy);
-                    holePath.lineTo(hx + hw, hy + hh);
-                    holePath.lineTo(hx, hy + hh);
-                    holePath.lineTo(hx, hy); // Close
-                    
-                    shape.holes.push(holePath);
+                    const hPath = new THREE.Path();
+                    const hx = (startPt.x + c.x * scale) - cx;
+                    const hy = (startPt.y + c.y * scale) - cy;
+                    const hw = c.w * scale, hh = c.h * scale;
+                    hPath.moveTo(hx, hy); hPath.lineTo(hx + hw, hy);
+                    hPath.lineTo(hx + hw, hy + hh); hPath.lineTo(hx, hy + hh);
+                    hPath.lineTo(hx, hy);
+                    shape.holes.push(hPath);
                 });
             }
 
-            const thicknessPixels = (shapeData.thickness || 0.75) * scale;
-            
-            const extrudeSettings = {
-                steps: 1,
-                depth: thicknessPixels,
-                bevelEnabled: true,
-                bevelThickness: 1,
-                bevelSize: 1,
-                bevelSegments: 2
-            };
+            const thickness = (shapeData.thickness || 0.75) * scale;
+            const geom = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: true, bevelThickness: 1, bevelSize: 1 });
+            const mat = this._getMeshMaterial('#e0c097');
+            const mainMesh = new THREE.Mesh(geom, mat);
+            mainMesh.scale.y = -1;
+            mainMesh.castShadow = true; mainMesh.receiveShadow = true;
+            group.add(mainMesh);
 
-            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-            
-            const material = this._getMeshMaterial('#e0c097'); // Wood color
-            const mesh = new THREE.Mesh(geometry, material);
-            
-            mesh.scale.y = -1;
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            
-            this.scene.add(mesh);
-            this.extrudedMeshes.push(mesh);
-            
-            // --- Tenons (Additive) ---
-            if (shapeData.tenons && shapeData.tenons.length > 0) {
+            if (shapeData.tenons) {
                 const startPt = shapeData.points[0];
                 shapeData.tenons.forEach(t => {
                     const tShape = new THREE.Shape();
-                    const tx = startPt.x + t.x * scale;
-                    const ty = startPt.y + t.y * scale;
-                    const tw = t.w * scale;
-                    const th = t.h * scale;
-                    
-                    tShape.moveTo(tx, ty);
-                    tShape.lineTo(tx + tw, ty);
-                    tShape.lineTo(tx + tw, ty + th);
-                    tShape.lineTo(tx, ty + th);
+                    const tx = (startPt.x + t.x * scale) - cx;
+                    const ty = (startPt.y + t.y * scale) - cy;
+                    const tw = t.w * scale, th = t.h * scale;
+                    tShape.moveTo(tx, ty); tShape.lineTo(tx + tw, ty);
+                    tShape.lineTo(tx + tw, ty + th); tShape.lineTo(tx, ty + th);
                     tShape.lineTo(tx, ty);
                     
-                    // Calculate Tenon Depth based on Inset
-                    // Board Depth = thicknessPixels
-                    // Tenon Depth = thicknessPixels - (2 * inset * scale)
-                    const insetPixels = (t.inset || 0) * scale;
-                    const tenonDepth = Math.max(1, thicknessPixels - (insetPixels * 2));
-                    
-                    const tSettings = { ...extrudeSettings, depth: tenonDepth };
-                    const tGeom = new THREE.ExtrudeGeometry(tShape, tSettings);
-                    const tMesh = new THREE.Mesh(tGeom, material);
-                    
+                    const inset = (t.inset || 0) * scale;
+                    const tGeom = new THREE.ExtrudeGeometry(tShape, { depth: Math.max(1, thickness - (inset * 2)), bevelEnabled: true, bevelSize: 1 });
+                    const tMesh = new THREE.Mesh(tGeom, mat);
                     tMesh.scale.y = -1;
-                    tMesh.castShadow = true;
-                    tMesh.receiveShadow = true;
-                    
-                    // Position Z to center it
-                    // Board is 0 to Depth.
-                    // Tenon should be Inset to Depth-Inset.
-                    tMesh.position.z = insetPixels;
-                    
-                    this.scene.add(tMesh);
-                    this.extrudedMeshes.push(tMesh);
-                    
-                    // Update bounds for camera centering
-                    tGeom.computeBoundingBox();
-                    const tBounds = tGeom.boundingBox.clone();
-                    // Apply transforms
-                    tBounds.min.y *= -1;
-                    tBounds.max.y *= -1;
-                    const tmpT = tBounds.min.y;
-                    tBounds.min.y = tBounds.max.y;
-                    tBounds.max.y = tmpT;
-                    tBounds.min.z += insetPixels;
-                    tBounds.max.z += insetPixels;
-                    
-                    bounds.union(tBounds);
+                    tMesh.position.z = inset;
+                    group.add(tMesh);
                 });
             }
+
+            const t3d = shapeData.transform3D || { position: {x:0, y:0, z:0}, rotation: {x:0, y:0, z:0} };
+            group.position.set(cx + t3d.position.x, cy + t3d.position.y, t3d.position.z);
+            group.rotation.set(t3d.rotation._x || t3d.rotation.x || 0, t3d.rotation._y || t3d.rotation.y || 0, t3d.rotation._z || t3d.rotation.z || 0);
+
+            this.scene.add(group);
+            this.extrudedMeshes.push(group);
             
-            // Update Bounds (Main Mesh)
-            geometry.computeBoundingBox();
-            const meshBounds = geometry.boundingBox.clone();
-            // Apply the Y flip to the bounds
-            meshBounds.min.y *= -1;
-            meshBounds.max.y *= -1;
-            // Since we flipped, min becomes max, swap them
-            const tmp = meshBounds.min.y;
-            meshBounds.min.y = meshBounds.max.y;
-            meshBounds.max.y = tmp;
-            
-            bounds.union(meshBounds);
+            const groupBounds = new THREE.Box3().setFromObject(group);
+            bounds.union(groupBounds);
             hasShapes = true;
         });
 
-        // Center Camera
         if (hasShapes) {
-            const center = new THREE.Vector3();
-            bounds.getCenter(center);
-            const size = new THREE.Vector3();
-            bounds.getSize(size);
-            const maxDim = Math.max(size.x, size.y, size.z);
-            
-            // Adjust Grid position to be "under" the lowest point
-            grid.position.z = bounds.min.z;
-            grid.position.x = center.x;
-            grid.position.y = center.y;
-
-            // Move camera
-            const dist = maxDim * 1.5; // Zoom factor
+            const center = new THREE.Vector3(); bounds.getCenter(center);
+            const size = new THREE.Vector3(); bounds.getSize(size);
+            const dist = Math.max(size.x, size.y, size.z) * 1.5;
             this.controls.target.copy(center);
-            // Position camera at an isometric-like angle
             this.cameraPersp.position.set(center.x + dist, center.y + dist, center.z + dist);
             this.controls.update();
         }

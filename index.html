@@ -19,6 +19,7 @@
             <input type="text" id="measurement-input" placeholder="e.g., 8' 2 1/2&quot;">
             <button id="apply-measurement">Apply</button>
             <button id="reset-drawing">Reset</button>
+            <button id="view-3d-btn" class="view-3d-btn hidden">View in 3D</button>
         </div>
         <div style="position: relative; width: 100%; height: 100%;">
             <canvas id="drawing-canvas" style="position: absolute; top: 0; left: 0; z-index: 0;"></canvas>
@@ -57,7 +58,6 @@
                 <textarea id="prop-json" style="width: 100%; height: 80px; font-size: 0.7em; font-family: monospace; border: 1px solid #ddd; border-radius: 4px; padding: 5px; resize: vertical;"></textarea>
             </div>
 
-            <button id="view-3d-btn" class="view-3d-btn" disabled>View in 3D</button>
             <button id="prop-delete" class="delete-btn">Delete Shape</button>
         </div>
 

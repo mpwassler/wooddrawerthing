@@ -41,7 +41,12 @@ export const DrawingOp = {
                     closed: true,
                     thickness: 0.75,
                     cutouts: [],
-                    tenons: []
+                    tenons: [],
+                    // Layout data for 3D view
+                    transform3D: {
+                        position: { x: 0, y: 0, z: 0 },
+                        rotation: { x: 0, y: 0, z: 0 }
+                    }
                 };
                 
                 Geometry.recalculateSideLengths(newShape.points, CONFIG.SCALE_PIXELS_PER_INCH);

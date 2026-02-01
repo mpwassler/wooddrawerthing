@@ -39,6 +39,7 @@ export const Input = {
             if (newShape) {
                 STATE.ui.selectedShapeId = newShape.id;
                 Input.updatePropertiesPanel(newShape);
+                Input.updateUIState();
             }
         } else {
             SelectionOp.handleSelect(e.ctrlKey);
@@ -194,7 +195,10 @@ export const Input = {
     handleAddCutout: () => { JoineryOp.addCutout(); Input.renderJoineryList(); },
     handleAddTenon: () => { JoineryOp.addTenon(); Input.renderJoineryList(); },
     handlePropChange: () => DocumentOp.updateShapeName(DOM.propName.value),
-    handleDeleteShape: () => DocumentOp.deleteSelectedShape(),
+    handleDeleteShape: () => {
+        DocumentOp.deleteSelectedShape();
+        Input.updateUIState();
+    },
     handleJSONImport: () => { if(DocumentOp.handleJSONImport()) Input.updatePropertiesPanel(STATE.selectedShape); },
     
     hideBooleanMenu: () => {
@@ -214,6 +218,7 @@ export const Input = {
             STATE.document.shapes.push(newShape);
             STATE.ui.selectedShapeId = newShape.id;
             Input.updatePropertiesPanel(newShape);
+            Input.updateUIState();
         }
         Input.hideBooleanMenu();
     },
@@ -230,6 +235,7 @@ export const Input = {
              STATE.document.shapes.push(newShape);
              STATE.ui.selectedShapeId = newShape.id;
              Input.updatePropertiesPanel(newShape);
+             Input.updateUIState();
         }
         Input.hideBooleanMenu();
     },
@@ -268,9 +274,8 @@ export const Input = {
     },
 
     updateUIState: () => {
-        const hasClosedShapes = STATE.document.shapes.length > 0;
-        DOM.btnView3D.disabled = !hasClosedShapes;
-        DOM.btnView3D.style.backgroundColor = hasClosedShapes ? '#28a745' : '#6c757d'; 
+        const hasShapes = STATE.document.shapes.length > 0;
+        DOM.btnView3D.classList.toggle('hidden', !hasShapes);
     },
 
     switchMode: (mode) => {
