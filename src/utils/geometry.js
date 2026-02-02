@@ -107,5 +107,19 @@ export const Geometry = {
             const dist = Geometry.dist(p1, p2);
             p1.lengthToNext = dist / scale;
         }
+    },
+
+    /**
+     * Calculates the area of a polygon in Square Inches.
+     */
+    calculateArea: (points, scale) => {
+        if (!points || points.length < 3) return 0;
+        let area = 0;
+        for (let i = 0; i < points.length; i++) {
+            const j = (i + 1) % points.length;
+            area += points[i].x * points[j].y;
+            area -= points[j].x * points[i].y;
+        }
+        return Math.abs(area) / 2 / (scale * scale);
     }
 };

@@ -7,6 +7,8 @@ import { STATE } from '../core/state.js';
 import { Storage } from '../core/storage.js';
 import { DOM } from '../core/dom.js';
 import { Input } from '../systems/input.js';
+import { Geometry } from '../utils/geometry.js';
+import { CONFIG } from '../core/config.js';
 
 export const ProjectOp = {
     init: async () => {
@@ -21,6 +23,7 @@ export const ProjectOp = {
         }
         ProjectOp.renderProjectList();
         Input.updateUIState();
+        ProjectOp.calculateTotalBoardFeet();
     },
 
     createNewProject: async (name) => {
@@ -33,6 +36,7 @@ export const ProjectOp = {
         await Storage.saveProject(newProject);
         ProjectOp.selectProject(newProject.id);
         ProjectOp.renderProjectList();
+        ProjectOp.calculateTotalBoardFeet();
     },
 
     selectProject: (id) => {
@@ -41,6 +45,7 @@ export const ProjectOp = {
         DOM.propPanel.classList.add('hidden');
         ProjectOp.renderProjectList();
         Input.updateUIState();
+        ProjectOp.calculateTotalBoardFeet();
     },
 
     saveCurrentProject: async () => {
@@ -60,6 +65,21 @@ export const ProjectOp = {
             ProjectOp.selectProject(STATE.document.projects[0].id);
         }
         ProjectOp.renderProjectList();
+    },
+
+    calculateTotalBoardFeet: () => {
+        if (!DOM.totalBoardFeet || !STATE.document.shapes) return;
+        
+        let totalBF = 0;
+        STATE.document.shapes.forEach(shape => {
+            const areaSqIn = Geometry.calculateArea(shape.points, CONFIG.SCALE_PIXELS_PER_INCH);
+            const thickness = shape.thickness || CONFIG.DEFAULT_THICKNESS;
+            const volume = areaSqIn * thickness;
+            const bf = volume / 144;
+            totalBF += bf;
+        });
+        
+        DOM.totalBoardFeet.innerText = `${totalBF.toFixed(2)} Board Feet`;
     },
 
     renderProjectList: () => {

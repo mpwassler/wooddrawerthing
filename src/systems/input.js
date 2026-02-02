@@ -14,6 +14,7 @@ import { DrawingOp } from '../operations/drawing-op.js';
 import { DraggingOp } from '../operations/dragging-op.js';
 import { JoineryOp } from '../operations/joinery-op.js';
 import { DocumentOp } from '../operations/document-op.js';
+import { ProjectOp } from '../operations/project-op.js';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -150,6 +151,7 @@ export const Input = {
         if (ui.dragging.type === 'THICKNESS') {
             document.body.style.cursor = 'default';
             DocumentOp.updateJSONExport();
+            ProjectOp.calculateTotalBoardFeet();
         } else if (ui.dragging.type === 'SHAPE') {
             const active = ui.dragging.item;
             const target = STATE.document.shapes.find(s => s !== active && s.closed && BooleanOps.checkIntersection(active, s));
@@ -303,6 +305,7 @@ export const Input = {
             STATE.ui.selectedShapeId = newShape.id;
             Input.updatePropertiesPanel(newShape);
             Input.updateUIState();
+            ProjectOp.calculateTotalBoardFeet();
         }
         Input.hideBooleanMenu();
     },
@@ -320,6 +323,7 @@ export const Input = {
              STATE.ui.selectedShapeId = newShape.id;
              Input.updatePropertiesPanel(newShape);
              Input.updateUIState();
+             ProjectOp.calculateTotalBoardFeet();
         }
         Input.hideBooleanMenu();
     },
@@ -347,6 +351,7 @@ export const Input = {
         STATE.ui.drawState = 'START_SHAPE';
         STATE.ui.activeDrawing.selectedDirection = null;
         DOM.input.value = '';
+        ProjectOp.calculateTotalBoardFeet();
     },
 
     handleReset: () => {
@@ -355,6 +360,7 @@ export const Input = {
         STATE.ui.selectedShapeId = null;
         DOM.propPanel.classList.add('hidden');
         Input.updateUIState();
+        ProjectOp.calculateTotalBoardFeet();
     },
 
     updateUIState: () => {
