@@ -90,6 +90,10 @@ async function init() {
         const name = prompt("Project Name:");
         if (name) ProjectOp.createNewProject(name);
     });
+
+    // Face Navigation
+    DOM.facePrevBtn.addEventListener('click', () => Input.cycleFace(-1));
+    DOM.faceNextBtn.addEventListener('click', () => Input.cycleFace(1));
     
     // 5. Start Main Loop
     loop();

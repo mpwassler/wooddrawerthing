@@ -15,7 +15,7 @@ export const ViewController = {
         const o = STATE.overlay;  
         if (!r || !o) return;
 
-        const { view, activeDrawing, mode, drawState } = STATE.ui;
+        const { view, activeDrawing, mode, drawState, activeFace } = STATE.ui;
 
         r.clear();
         o.clear();
@@ -24,44 +24,78 @@ export const ViewController = {
         r.pushWorldTransform(view.pan.x, view.pan.y, view.zoom);
         
         // 1. Grid
-        const gridSize = 20;
-        const scaleGrid = gridSize * Math.pow(2, Math.floor(Math.log2(1/view.zoom)));
         const worldTL = Geometry.screenToWorld({x: 0, y: 0}, view);
         const worldBR = Geometry.screenToWorld({x: DOM.canvas.width, y: DOM.canvas.height}, view);
-        r.drawGrid({left: worldTL.x, top: worldTL.y, right: worldBR.x, bottom: worldBR.y}, scaleGrid, CONFIG.COLORS.GRID, 1 / view.zoom);
+        r.drawGrid({left: worldTL.x, top: worldTL.y, right: worldBR.x, bottom: worldBR.y}, 20, CONFIG.COLORS.GRID, 1 / view.zoom);
 
         // 2. Shapes (Geometry)
         STATE.document.shapes.forEach(shape => {
-            const isHovered = shape.id === STATE.ui.hoveredShapeId;
             const isSelected = shape.id === STATE.ui.selectedShapeId;
-            const color = isSelected ? CONFIG.COLORS.SHAPE_SELECTED : (isHovered ? CONFIG.COLORS.SHAPE_HOVER : CONFIG.COLORS.SHAPE_DEFAULT);
-            const lineWidth = (isSelected || isHovered ? 3 : 2) / view.zoom;
+            const isHovered = shape.id === STATE.ui.hoveredShapeId;
+            const activeFace = shape.activeFace || 'FRONT';
 
-            if (shape.closed && shape.points.length > 2) {
-                r.drawPolygon(shape.points, isSelected ? CONFIG.COLORS.SHAPE_FILL_SELECTED : CONFIG.COLORS.SHAPE_FILL);
-            }
+            // Standard View (Non-selected shapes or FRONT face)
+            if (activeFace === 'FRONT' || !isSelected) {
+                const color = isSelected ? CONFIG.COLORS.SHAPE_SELECTED : (isHovered ? CONFIG.COLORS.SHAPE_HOVER : CONFIG.COLORS.SHAPE_DEFAULT);
+                const lineWidth = (isSelected || isHovered ? 3 : 2) / view.zoom;
 
-            const drawSegment = (p1, p2) => r.drawLine(p1, p2, color, lineWidth);
-            for (let i = 0; i < shape.points.length - 1; i++) {
-                drawSegment(shape.points[i], shape.points[i+1]);
+                if (shape.closed && shape.points.length > 2) {
+                    r.drawPolygon(shape.points, isSelected ? CONFIG.COLORS.SHAPE_FILL_SELECTED : CONFIG.COLORS.SHAPE_FILL);
+                }
+
+                for (let i = 0; i < shape.points.length; i++) {
+                    const p1 = shape.points[i];
+                    const p2 = shape.points[(i + 1) % shape.points.length];
+                    if (!shape.closed && i === shape.points.length - 1) continue;
+                    r.drawLine(p1, p2, color, lineWidth);
+                }
+            } 
+            // Back Face View (Horizontal Flip)
+            else if (isSelected && activeFace === 'BACK') {
+                let cx = 0; shape.points.forEach(p => cx += p.x); cx /= shape.points.length;
+                const mirroredPoints = shape.points.map(p => ({ x: 2 * cx - p.x, y: p.y }));
+
+                r.drawPolygon(mirroredPoints, CONFIG.COLORS.SHAPE_FILL_SELECTED);
+                for (let i = 0; i < mirroredPoints.length; i++) {
+                    const p1 = mirroredPoints[i], p2 = mirroredPoints[(i + 1) % mirroredPoints.length];
+                    r.drawLine(p1, p2, CONFIG.COLORS.SHAPE_SELECTED, 3 / view.zoom);
+                }
             }
-            if (shape.closed && shape.points.length > 1) {
-                drawSegment(shape.points[shape.points.length - 1], shape.points[0]);
+            // Edge Isolation View
+            else if (isSelected && activeFace.startsWith('EDGE_')) {
+                const edgeIdx = parseInt(activeFace.split('_')[1]);
+                const p1 = shape.points[edgeIdx];
+                const edgeLen = p1.lengthToNext || 0;
+                const thickness = shape.thickness || 0.75;
+                const scale = CONFIG.SCALE_PIXELS_PER_INCH;
+
+                // Center the edge rectangle on the shape's centroid
+                let cx = 0, cy = 0;
+                shape.points.forEach(p => { cx += p.x; cy += p.y; });
+                cx /= shape.points.length; cy /= shape.points.length;
+
+                const halfW = (edgeLen * scale) / 2;
+                const halfH = (thickness * scale) / 2;
+
+                const edgePoints = [
+                    { x: cx - halfW, y: cy - halfH },
+                    { x: cx + halfW, y: cy - halfH },
+                    { x: cx + halfW, y: cy + halfH },
+                    { x: cx - halfW, y: cy + halfH }
+                ];
+
+                r.drawPolygon(edgePoints, CONFIG.COLORS.SHAPE_FILL);
+                for(let k=0; k<4; k++) r.drawLine(edgePoints[k], edgePoints[(k+1)%4], CONFIG.COLORS.SHAPE_SELECTED, 3/view.zoom);
             }
         });
 
-        // 3. Drawing Preview (Existing segments of shape being drawn)
+        // 3. Drawing Preview
         if (mode === 'DRAW' && activeDrawing.points.length > 0) {
             const pts = activeDrawing.points;
-            for (let i = 0; i < pts.length - 1; i++) {
-                r.drawLine(pts[i], pts[i+1], CONFIG.COLORS.GUIDE_LINE, 2 / view.zoom);
-            }
-            // The segment currently being dragged
-            if (drawState === 'DRAWING_LINE' && activeDrawing.tempLine) {
-                r.drawLine(activeDrawing.tempLine.start, activeDrawing.tempLine.end, CONFIG.COLORS.GUIDE_LINE, 2 / view.zoom, [6, 4]);
-            }
+            for (let i = 0; i < pts.length - 1; i++) r.drawLine(pts[i], pts[i+1], CONFIG.COLORS.GUIDE_LINE, 2/view.zoom);
+            if (drawState === 'DRAWING_LINE' && activeDrawing.tempLine) r.drawLine(activeDrawing.tempLine.start, activeDrawing.tempLine.end, CONFIG.COLORS.GUIDE_LINE, 2/view.zoom, [6, 4]);
         }
-        
+
         // 4. Alignment Guide
         if (activeDrawing.alignmentGuide) {
             r.drawLine(activeDrawing.alignmentGuide.start, activeDrawing.alignmentGuide.end, CONFIG.COLORS.ALIGNMENT_GUIDE, 1 / view.zoom, [4, 4]);
@@ -73,24 +107,84 @@ export const ViewController = {
         o.pushWorldTransform(view.pan.x, view.pan.y, view.zoom);
 
         STATE.document.shapes.forEach(shape => {
-            // Dimensions
-            for (let i = 0; i < shape.points.length; i++) {
-                const p1 = shape.points[i];
-                const p2 = shape.points[(i + 1) % shape.points.length];
-                if (!shape.closed && i === shape.points.length - 1) continue;
-                if (p1.lengthToNext) {
-                    ViewController.drawDimension(p1, p2, p1.lengthToNext);
+            const isSelected = shape.id === STATE.ui.selectedShapeId;
+            const scale = CONFIG.SCALE_PIXELS_PER_INCH;
+            // Dimensions Rendering
+            if (activeFace && activeFace === 'FRONT' || !isSelected) {
+                // Standard Front View Dimensions
+                for (let i = 0; i < shape.points.length; i++) {
+                    const p1 = shape.points[i];
+                    const p2 = shape.points[(i + 1) % shape.points.length];
+                    if (!shape.closed && i === shape.points.length - 1) continue;
+                    if (p1.lengthToNext) ViewController.drawDimension(p1, p2, p1.lengthToNext);
                 }
+            } else if (isSelected && activeFace === 'BACK') {
+                // Mirrored Back View Dimensions
+                let cx = 0; shape.points.forEach(p => cx += p.x); cx /= shape.points.length;
+                for (let i = 0; i < shape.points.length; i++) {
+                    const p1 = shape.points[i], p2 = shape.points[(i + 1) % shape.points.length];
+                    if (!shape.closed && i === shape.points.length - 1) continue;
+                    if (p1.lengthToNext) {
+                        const mp1 = { x: 2 * cx - p1.x, y: p1.y };
+                        const mp2 = { x: 2 * cx - p2.x, y: p2.y };
+                        ViewController.drawDimension(mp1, mp2, p1.lengthToNext);
+                    }
+                }
+            } else if (isSelected && activeFace && activeFace.startsWith('EDGE_')) {
+                // Edge Isolation View Dimensions
+                const edgeIdx = parseInt(activeFace.split('_')[1]);
+                const p1 = shape.points[edgeIdx];
+                const edgeLen = p1.lengthToNext || 0;
+                const thickness = shape.thickness || 0.75;
+                const scale = CONFIG.SCALE_PIXELS_PER_INCH;
+
+                let cx = 0, cy = 0; shape.points.forEach(p => { cx += p.x; cy += p.y; });
+                cx /= shape.points.length; cy /= shape.points.length;
+
+                const halfW = (edgeLen * scale) / 2;
+                const halfH = (thickness * scale) / 2;
+
+                // Width Dimension (Top)
+                ViewController.drawDimension(
+                    { x: cx - halfW, y: cy - halfH },
+                    { x: cx + halfW, y: cy - halfH },
+                    edgeLen
+                );
+                // Thickness Dimension (Left)
+                ViewController.drawDimension(
+                    { x: cx - halfW, y: cy + halfH },
+                    { x: cx - halfW, y: cy - halfH },
+                    thickness
+                );
             }
 
-            // Joinery
-            const startPt = shape.points[0];
-            const scale = CONFIG.SCALE_PIXELS_PER_INCH;
-            const isSelected = shape.id === STATE.ui.selectedShapeId;
+            // Joinery Rendering
+  
+            const faceData = (shape.faceData && shape.faceData[activeFace]) ? shape.faceData[activeFace] : { tenons: [], cutouts: [] };
             
+            let cx = 0, cy = 0;
+            shape.points.forEach(p => { cx += p.x; cy += p.y; });
+            cx /= shape.points.length; cy /= shape.points.length;
+
+            let origin = shape.points[0];
+            let xMultiplier = 1;
+
+            if (isSelected && activeFace === 'BACK') {
+                origin = { x: 2 * cx - shape.points[0].x, y: shape.points[0].y };
+                xMultiplier = -1;
+            } else if (isSelected && activeFace && activeFace.startsWith('EDGE_')) {
+                const edgeIdx = parseInt(activeFace.split('_')[1]);
+                const edgeLen = shape.points[edgeIdx].lengthToNext || 0;
+                const thickness = shape.thickness || 0.75;
+                origin = { x: cx - (edgeLen * scale) / 2, y: cy - (thickness * scale) / 2 };
+            }
+
             const drawJoineryRect = (item, color, fillColor) => {
-                const worldX = startPt.x + item.x * scale;
-                const worldY = startPt.y + item.y * scale;
+                // If we are looking at an edge, only draw joinery for the selected shape's active edge
+                if (!isSelected && activeFace !== 'FRONT') return;
+
+                const worldX = origin.x + (item.x * scale * xMultiplier) - (xMultiplier === -1 ? item.w * scale : 0);
+                const worldY = origin.y + item.y * scale;
                 const w = item.w * scale;
                 const h = item.h * scale;
                 const pts = [{x:worldX, y:worldY}, {x:worldX+w, y:worldY}, {x:worldX+w, y:worldY+h}, {x:worldX, y:worldY+h}];
@@ -106,18 +200,17 @@ export const ViewController = {
                 }
             };
 
-            (shape.cutouts || []).forEach(c => drawJoineryRect(c, '#d9534f', 'rgba(217, 83, 79, 0.1)'));
-            (shape.tenons || []).forEach(t => drawJoineryRect(t, '#2e7d32', CONFIG.COLORS.SHAPE_FILL));
+            if (faceData.cutouts) faceData.cutouts.forEach(c => drawJoineryRect(c, '#d9534f', 'rgba(217, 83, 79, 0.1)'));
+            if (faceData.tenons) faceData.tenons.forEach(t => drawJoineryRect(t, '#2e7d32', CONFIG.COLORS.SHAPE_FILL));
             
-            // Centroid
-            if (shape.closed && shape.points.length > 0) {
+            // Centroid (Front view only)
+            if (activeFace === 'FRONT' && shape.closed && shape.points.length > 0) {
                 let cx = 0, cy = 0;
                 shape.points.forEach(p => { cx += p.x; cy += p.y; });
                 cx /= shape.points.length; cy /= shape.points.length;
                 const screenC = Geometry.worldToScreen({x: cx, y: cy}, view);
-                const size = 6;
-                o.drawLine({x: screenC.x - size, y: screenC.y}, {x: screenC.x + size, y: screenC.y}, CONFIG.COLORS.ALIGNMENT_GUIDE, 1);
-                o.drawLine({x: screenC.x, y: screenC.y - size}, {x: screenC.x, y: screenC.y + size}, CONFIG.COLORS.ALIGNMENT_GUIDE, 1);
+                o.drawLine({x: screenC.x - 6, y: screenC.y}, {x: screenC.x + 6, y: screenC.y}, CONFIG.COLORS.ALIGNMENT_GUIDE, 1);
+                o.drawLine({x: screenC.x, y: screenC.y - 6}, {x: screenC.x, y: screenC.y + 6}, CONFIG.COLORS.ALIGNMENT_GUIDE, 1);
             }
         });
 
@@ -125,7 +218,8 @@ export const ViewController = {
 
         // --- Screen Space Overlay ---
         if (mode === 'DRAW') {
-            const activePt = activeDrawing.points.length > 0 ? activeDrawing.points[activeDrawing.points.length-1] : null;
+            const pts = activeDrawing.points;
+            const activePt = pts.length > 0 ? pts[pts.length - 1] : null;
             if (activePt) {
                 const screen = Geometry.worldToScreen(activePt, view);
                 o.drawCircle(screen, 5, CONFIG.COLORS.GUIDE_LINE);

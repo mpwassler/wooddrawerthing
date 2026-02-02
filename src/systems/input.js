@@ -19,6 +19,12 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export const Input = {
     // --- Helpers ---
+    activeFaceData: () => {
+        const shape = STATE.selectedShape;
+        if (!shape || !shape.faceData) return { tenons: [], cutouts: [] };
+        return shape.faceData[shape.activeFace || 'FRONT'] || { tenons: [], cutouts: [] };
+    },
+
     updateJSONExport: () => {
         const shape = STATE.selectedShape;
         if (!shape) {
@@ -62,22 +68,54 @@ export const Input = {
             if (STATE.selectedShape) {
                 const shape = STATE.selectedShape;
                 const scale = CONFIG.SCALE_PIXELS_PER_INCH;
-                const startPt = shape.points[0];
-                const findItem = (list, type) => {
+                
+                // Use active face data for detection
+                const { tenons, cutouts } = Input.activeFaceData();
+                
+                let cx = 0, cy = 0;
+                shape.points.forEach(p => { cx += p.x; cy += p.y; });
+                cx /= shape.points.length; cy /= shape.points.length;
+
+                let origin = shape.points[0];
+                let xMultiplier = 1;
+
+                if (shape.activeFace === 'BACK') {
+                    origin = { x: 2 * cx - shape.points[0].x, y: shape.points[0].y };
+                    xMultiplier = -1;
+                } else if (shape.activeFace && shape.activeFace.startsWith('EDGE_')) {
+                    const edgeIdx = parseInt(shape.activeFace.split('_')[1]);
+                    const edgeLen = shape.points[edgeIdx].lengthToNext || 0;
+                    const thickness = shape.thickness || 0.75;
+                    origin = { x: cx - (edgeLen * scale) / 2, y: cy - (thickness * scale) / 2 };
+                }
+
+                const findItem = (list) => {
+                    if (!list) return null;
                     return list.find(item => {
-                        const worldX = startPt.x + item.x * scale;
-                        const worldY = startPt.y + item.y * scale;
+                        const worldX = origin.x + (item.x * scale * xMultiplier) - (xMultiplier === -1 ? item.w * scale : 0);
+                        const worldY = origin.y + item.y * scale;
                         return (mouseWorld.x >= worldX && mouseWorld.x <= worldX + item.w * scale &&
                                 mouseWorld.y >= worldY && mouseWorld.y <= worldY + item.h * scale);
                     });
                 };
 
-                const item = findItem(shape.cutouts, 'cutout') || findItem(shape.tenons, 'tenon');
-                if (item) {
-                    const type = shape.cutouts.includes(item) ? 'cutout' : 'tenon';
-                    const worldX = startPt.x + item.x * scale;
-                    const worldY = startPt.y + item.y * scale;
-                    STATE.ui.dragging = { type: 'JOINERY', item, listType: type, shape, offset: { x: mouseWorld.x - worldX, y: mouseWorld.y - worldY } };
+                const foundCutout = findItem(cutouts);
+                const foundTenon = findItem(tenons);
+                
+                if (foundCutout || foundTenon) {
+                    const item = foundCutout || foundTenon;
+                    const type = foundCutout ? 'cutout' : 'tenon';
+                    
+                    const worldX = origin.x + (item.x * scale * xMultiplier) - (xMultiplier === -1 ? item.w * scale : 0);
+                    const worldY = origin.y + item.y * scale;
+                    
+                    STATE.ui.dragging = { 
+                        type: 'JOINERY', 
+                        item, 
+                        listType: type, 
+                        shape, 
+                        offset: { x: mouseWorld.x - worldX, y: mouseWorld.y - worldY } 
+                    };
                     return;
                 }
             }
@@ -141,7 +179,7 @@ export const Input = {
 
     handleWheel: (e) => ViewportOp.handleZoom(e),
 
-    // --- UI Routing ---
+    // --- UI Properties Handlers ---
     updatePropertiesPanel: (shape) => {
         if (!shape) { DOM.propPanel.classList.add('hidden'); return; }
         DOM.propPanel.classList.remove('hidden');
@@ -150,6 +188,43 @@ export const Input = {
         let totalLen = 0;
         shape.points.forEach(p => { if (p.lengthToNext) totalLen += p.lengthToNext; });
         DOM.propLength.textContent = Geometry.formatInches(totalLen);
+        
+        Input.updateFaceSelector();
+        Input.renderJoineryList();
+        DocumentOp.updateJSONExport();
+    },
+
+    updateFaceSelector: () => {
+        const shape = STATE.selectedShape;
+        if (!shape) return;
+        
+        let label = "Front";
+        if (shape.activeFace === 'BACK') label = "Back";
+        else if (shape.activeFace && shape.activeFace.startsWith('EDGE_')) {
+            const idx = parseInt(shape.activeFace.split('_')[1]);
+            label = `Edge ${idx + 1}`;
+        }
+        DOM.faceLabel.innerText = label;
+    },
+
+    cycleFace: (delta) => {
+        const shape = STATE.selectedShape;
+        if (!shape) return;
+
+        // 1. Build Face Buffer
+        const faces = ['FRONT', 'BACK'];
+        shape.points.forEach((p, i) => faces.push(`EDGE_${i}`));
+
+        // 2. Find Current Index
+        let currIdx = faces.indexOf(shape.activeFace || 'FRONT');
+        if (currIdx === -1) currIdx = 0;
+
+        // 3. Cycle with Wrap
+        let nextIdx = (currIdx + delta + faces.length) % faces.length;
+        shape.activeFace = faces[nextIdx];
+
+        // 4. Update UI
+        Input.updateFaceSelector();
         Input.renderJoineryList();
         DocumentOp.updateJSONExport();
     },
@@ -158,8 +233,12 @@ export const Input = {
         const shape = STATE.selectedShape;
         if (!shape) return;
         DOM.joineryList.innerHTML = '';
-        (shape.cutouts || []).forEach((c, i) => Input.createJoineryItemDOM('Cutout', c, i, 'cutout', '#ffebee'));
-        (shape.tenons || []).forEach((t, i) => Input.createJoineryItemDOM('Tenon', t, i, 'tenon', '#e8f5e9'));
+        
+        const { tenons, cutouts } = Input.activeFaceData();
+        
+        if (cutouts) cutouts.forEach((c, i) => Input.createJoineryItemDOM('Cutout', c, i, 'cutout', '#ffebee'));
+        if (tenons) tenons.forEach((t, i) => Input.createJoineryItemDOM('Tenon', t, i, 'tenon', '#e8f5e9'));
+        
         DocumentOp.updateJSONExport();
     },
 
@@ -188,6 +267,7 @@ export const Input = {
         };
         addInp('w', 'W:'); addInp('h', 'H:');
         if (type === 'tenon') addInp('inset', 'In:');
+        addInp('depth', 'D:');
         div.appendChild(dims);
         DOM.joineryList.appendChild(div);
     },

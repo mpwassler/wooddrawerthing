@@ -38,5 +38,10 @@ export const DOM = {
 
     // Projects
     projectList: document.getElementById('project-list'),
-    btnAddProject: document.getElementById('add-project-btn')
+    btnAddProject: document.getElementById('add-project-btn'),
+
+    // Faces
+    facePrevBtn: document.getElementById('face-prev-btn'),
+    faceNextBtn: document.getElementById('face-next-btn'),
+    faceLabel: document.getElementById('face-label'),
 };

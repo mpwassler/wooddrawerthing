@@ -27,7 +27,7 @@ export const STATE = {
         is3DOpen: false,
         
         // Selection
-        selectedShapeId: null, // Track by ID or Index
+        selectedShapeId: null, 
         hoveredShapeId: null,
         
         // Viewport

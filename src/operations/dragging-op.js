@@ -24,29 +24,48 @@ export const DraggingOp = {
         else if (dragging.type === 'JOINERY') {
             const { item, shape, offset, listType } = dragging;
             const scale = CONFIG.SCALE_PIXELS_PER_INCH;
-            const startPt = shape.points[0];
+            const activeFace = shape.activeFace || 'FRONT';
+            
+            let cx = 0, cy = 0;
+            shape.points.forEach(p => { cx += p.x; cy += p.y; });
+            cx /= shape.points.length; cy /= shape.points.length;
+
+            let startPt = shape.points[0];
+            let xMultiplier = 1;
+
+            if (activeFace === 'BACK') {
+                startPt = { x: 2 * cx - shape.points[0].x, y: shape.points[0].y };
+                xMultiplier = -1;
+            } else if (activeFace.startsWith('EDGE_')) {
+                const edgeIdx = parseInt(activeFace.split('_')[1]);
+                const edgeLen = shape.points[edgeIdx].lengthToNext || 0;
+                const thickness = shape.thickness || 0.75;
+                startPt = { 
+                    x: cx - (edgeLen * scale) / 2, 
+                    y: cy - (thickness * scale) / 2 
+                };
+            }
             
             let newWorldX = mouseWorld.x - offset.x;
             let newWorldY = mouseWorld.y - offset.y;
             ui.activeDrawing.alignmentGuide = null;
-
-            const pts = shape.points;
-            let cx = 0, cy = 0;
-            pts.forEach(p => { cx += p.x; cy += p.y; });
-            cx /= shape.points.length; cy /= shape.points.length;
 
             const halfW = item.w * scale / 2;
             const halfH = item.h * scale / 2;
             let tCenterX = newWorldX + halfW;
             let tCenterY = newWorldY + halfH;
 
+            // --- Snapping Logic ---
             if (listType === 'tenon') {
                 let minDist = Infinity, bestSnap = null;
                 for (let i = 0; i < pts.length; i++) {
                     const p1 = pts[i], p2 = pts[(i + 1) % pts.length];
                     const closest = Geometry.closestPointOnSegment({x: tCenterX, y: tCenterY}, p1, p2);
                     const dist = Geometry.dist({x: tCenterX, y: tCenterY}, closest);
-                    if (dist < minDist) { minDist = dist; bestSnap = { closest, isVert: Math.abs(p1.x - p2.x) < Math.abs(p1.y - p2.y), p1, p2 }; }
+                    if (dist < minDist) { 
+                        minDist = dist; 
+                        bestSnap = { closest, isVert: Math.abs(p1.x - p2.x) < Math.abs(p1.y - p2.y), p1, p2 }; 
+                    }
                 }
 
                 if (bestSnap && minDist < 50) {
@@ -62,17 +81,28 @@ export const DraggingOp = {
                         tCenterY = newWorldY + halfH;
                         if (Math.abs(tCenterX - cx) < 50) {
                             newWorldX = cx - halfW;
-                            ui.activeDrawing.alignmentGuide = { start: {x: cx - 20, y: cy}, end: {x: cx + 20, y: cy} }; // Crosshair
+                            ui.activeDrawing.alignmentGuide = { start: {x: cx, y: cy - 20}, end: {x: cx, y: cy + 20} };
                         }
                     }
                 }
             } else {
                 // Cutout Snapping
-                if (Math.abs(tCenterX - cx) < 30) { newWorldX = cx - halfW; ui.activeDrawing.alignmentGuide = { start: {x: cx, y: cy - 20}, end: {x: cx, y: cy + 20} }; }
-                if (Math.abs(tCenterY - cy) < 30) { newWorldY = cy - halfH; ui.activeDrawing.alignmentGuide = { start: {x: cx - 20, y: cy}, end: {x: cx + 20, y: cy} }; }
+                if (Math.abs(tCenterX - cx) < 30) { 
+                    newWorldX = cx - halfW; 
+                    ui.activeDrawing.alignmentGuide = { start: {x: cx, y: cy - 20}, end: {x: cx, y: cy + 20} }; 
+                }
+                if (Math.abs(tCenterY - cy) < 30) { 
+                    newWorldY = cy - halfH; 
+                    ui.activeDrawing.alignmentGuide = { start: {x: cx - 20, y: cy}, end: {x: cx + 20, y: cy} }; 
+                }
             }
 
-            item.x = (newWorldX - startPt.x) / scale;
+            if (activeFace === 'BACK') {
+                // For BACK, item.x is measured from the right-side mirrored origin
+                item.x = (startPt.x - (newWorldX + item.w * scale)) / scale;
+            } else {
+                item.x = (newWorldX - startPt.x) / scale;
+            }
             item.y = (newWorldY - startPt.y) / scale;
         }
 

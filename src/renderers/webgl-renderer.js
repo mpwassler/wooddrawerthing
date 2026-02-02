@@ -270,47 +270,139 @@ export class WebGLRenderer {
                 shape.lineTo(shapeData.points[i].x - cx, shapeData.points[i].y - cy);
             }
             
-            if (shapeData.cutouts && shapeData.cutouts.length > 0) {
-                const startPt = shapeData.points[0];
-                shapeData.cutouts.forEach(c => {
-                    const hPath = new THREE.Path();
-                    const hx = (startPt.x + c.x * scale) - cx;
-                    const hy = (startPt.y + c.y * scale) - cy;
-                    const hw = c.w * scale, hh = c.h * scale;
-                    hPath.moveTo(hx, hy); hPath.lineTo(hx + hw, hy);
-                    hPath.lineTo(hx + hw, hy + hh); hPath.lineTo(hx, hy + hh);
-                    hPath.lineTo(hx, hy);
-                    shape.holes.push(hPath);
-                });
-            }
-
-            const thickness = (shapeData.thickness || 0.75) * scale;
-            const geom = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: true, bevelThickness: 1, bevelSize: 1 });
-            const mat = this._getMeshMaterial('#e0c097');
-            const mainMesh = new THREE.Mesh(geom, mat);
-            mainMesh.scale.y = -1;
-            mainMesh.castShadow = true; mainMesh.receiveShadow = true;
-            group.add(mainMesh);
-
-            if (shapeData.tenons) {
-                const startPt = shapeData.points[0];
-                shapeData.tenons.forEach(t => {
-                    const tShape = new THREE.Shape();
-                    const tx = (startPt.x + t.x * scale) - cx;
-                    const ty = (startPt.y + t.y * scale) - cy;
-                    const tw = t.w * scale, th = t.h * scale;
-                    tShape.moveTo(tx, ty); tShape.lineTo(tx + tw, ty);
-                    tShape.lineTo(tx + tw, ty + th); tShape.lineTo(tx, ty + th);
-                    tShape.lineTo(tx, ty);
-                    
-                    const inset = (t.inset || 0) * scale;
-                    const tGeom = new THREE.ExtrudeGeometry(tShape, { depth: Math.max(1, thickness - (inset * 2)), bevelEnabled: true, bevelSize: 1 });
-                    const tMesh = new THREE.Mesh(tGeom, mat);
-                    tMesh.scale.y = -1;
-                    tMesh.position.z = inset;
-                    group.add(tMesh);
-                });
-            }
+                        // Add Holes (Cutouts)
+            
+                        if (shapeData.faceData && shapeData.faceData.FRONT && shapeData.faceData.FRONT.cutouts) {
+            
+                            const startPt = shapeData.points[0];
+            
+                            shapeData.faceData.FRONT.cutouts.forEach(c => {
+            
+                                // If depth is less than full thickness, it's a pocket, not a through-hole.
+            
+                                // For now, only through-holes are added to shape.holes.
+            
+                                if (c.depth >= shapeData.thickness) {
+            
+                                    const hPath = new THREE.Path();
+            
+                                    const hx = (startPt.x + c.x * scale) - cx;
+            
+                                    const hy = (startPt.y + c.y * scale) - cy;
+            
+                                    const hw = c.w * scale, hh = c.h * scale;
+            
+                                    hPath.moveTo(hx, hy); hPath.lineTo(hx + hw, hy);
+            
+                                    hPath.lineTo(hx + hw, hy + hh);
+            
+                                    hPath.lineTo(hx, hy + hh);
+            
+                                    hPath.lineTo(hx, hy);
+            
+                                    shape.holes.push(hPath);
+            
+                                }
+            
+                            });
+            
+                        }
+            
+            
+            
+                        const thickness = (shapeData.thickness || 0.75) * scale;
+            
+                        const geom = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: true, bevelThickness: 1, bevelSize: 1 });
+            
+                        const mat = this._getMeshMaterial('#e0c097');
+            
+                        const mainMesh = new THREE.Mesh(geom, mat);
+            
+                        mainMesh.scale.y = -1;
+            
+                        mainMesh.castShadow = true; mainMesh.receiveShadow = true;
+            
+                        group.add(mainMesh);
+            
+            
+            
+                        // Render Partial-Depth Cutouts (Pockets) and Tenons
+            
+                        const renderAddon = (item, isCutout) => {
+            
+                            const itemShape = new THREE.Shape();
+            
+                            const startPt = shapeData.points[0];
+            
+                            const ix = (startPt.x + item.x * scale) - cx;
+            
+                            const iy = (startPt.y + item.y * scale) - cy;
+            
+                            const iw = item.w * scale, ih = item.h * scale;
+            
+                            itemShape.moveTo(ix, iy); itemShape.lineTo(ix + iw, iy);
+            
+                            itemShape.lineTo(ix + iw, iy + ih); itemShape.lineTo(ix, iy + ih);
+            
+                            itemShape.lineTo(ix, iy);
+            
+            
+            
+                            const itemDepth = (item.depth || 0.75) * scale;
+            
+                            const itemGeom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: true, bevelSize: 1 });
+            
+                            // Use a darker color for pockets to indicate subtraction
+            
+                            const itemMat = isCutout ? this._getMeshMaterial('#c0a077') : mat;
+            
+                            const itemMesh = new THREE.Mesh(itemGeom, itemMat);
+            
+                            itemMesh.scale.y = -1;
+            
+                            
+            
+                            if (isCutout) {
+            
+                                // Position pocket on the front surface, extruding inwards
+            
+                                itemMesh.position.z = 0.1; // Slightly offset to avoid flickering
+            
+                            } else {
+            
+                                // Tenon position logic
+            
+                                const inset = (item.inset || 0) * scale;
+            
+                                itemMesh.position.z = inset;
+            
+                            }
+            
+                            group.add(itemMesh);
+            
+                        };
+            
+            
+            
+                        // Edges and Front additions
+            
+                        Object.keys(shapeData.faceData).forEach(faceKey => {
+            
+                            const data = shapeData.faceData[faceKey];
+            
+                            // For FRONT pockets (less than full thickness)
+            
+                            if (faceKey === 'FRONT') {
+            
+                                data.cutouts.forEach(c => { if (c.depth < shapeData.thickness) renderAddon(c, true); });
+            
+                                data.tenons.forEach(t => renderAddon(t, false));
+            
+                            }
+            
+                            // (Note: Edge joinery logic would be similar but requires rotation, keeping it simple for now)
+            
+                        });
 
             const t3d = shapeData.transform3D || { position: {x:0, y:0, z:0}, rotation: {x:0, y:0, z:0} };
             group.position.set(cx + t3d.position.x, cy + t3d.position.y, t3d.position.z);

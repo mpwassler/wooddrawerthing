@@ -22,7 +22,7 @@ export const DrawingOp = {
                 activeDrawing.highlightedDirection = null;
             } else {
                 ui.drawState = 'IDLE';
-                DrawingOp.handleDrawClick(mouseWorld, mouseScreen); 
+                return DrawingOp.handleDrawClick(mouseWorld, mouseScreen); 
             }
         } else if (ui.drawState === 'DRAWING_LINE') {
             const activePt = activeDrawing.points[activeDrawing.points.length - 1];
@@ -40,23 +40,34 @@ export const DrawingOp = {
                     points: [...activeDrawing.points],
                     closed: true,
                     thickness: 0.75,
-                    cutouts: [],
-                    tenons: [],
-                    // Layout data for 3D view
+                    activeFace: 'FRONT',
+                    faceData: {
+                        'FRONT': { tenons: [], cutouts: [] },
+                        'BACK': { tenons: [], cutouts: [] }
+                    },
                     transform3D: {
                         position: { x: 0, y: 0, z: 0 },
                         rotation: { x: 0, y: 0, z: 0 }
                     }
                 };
                 
+                // Initialize Edge data
+                newShape.points.forEach((p, i) => {
+                    newShape.faceData[`EDGE_${i}`] = { tenons: [], cutouts: [] };
+                });
+                
                 Geometry.recalculateSideLengths(newShape.points, CONFIG.SCALE_PIXELS_PER_INCH);
                 STATE.document.shapes.push(newShape);
                 
                 // Cleanup drawing state
                 activeDrawing.points = [];
+                activeDrawing.tempLine = null;
+                activeDrawing.alignmentGuide = null;
+                activeDrawing.selectedDirection = null;
+                activeDrawing.snapTarget = null;
                 ui.drawState = 'IDLE';
                 
-                return newShape; // Return to trigger selection logic
+                return newShape; 
             } else {
                 activeDrawing.points.push(target);
                 ui.drawState = 'START_SHAPE';
@@ -113,7 +124,6 @@ export const DrawingOp = {
                 }
             }
 
-            // Simple alignment guides (orthogonal)
             if (dir.x !== 0) { 
                 const t = (startPt.x - activePt.x) / dir.x;
                 if (t > 0 && Math.abs((t - len) * view.zoom) < CONFIG.SNAP_RADIUS_SCREEN_PX) {
