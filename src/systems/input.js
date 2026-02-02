@@ -154,19 +154,21 @@ export const Input = {
             ProjectOp.calculateTotalBoardFeet();
         } else if (ui.dragging.type === 'SHAPE') {
             const active = ui.dragging.item;
-            const target = STATE.document.shapes.find(s => s !== active && s.closed && BooleanOps.checkIntersection(active, s));
+            const isFront = !active.activeFace || active.activeFace === 'FRONT';
             
-            console.log('Boolean Drop Check:', { active, target });
-
-            if (target) {
-                // Show Menu
-                setTimeout(() => {
-                    console.log('Showing Boolean Menu at:', e.clientX, e.clientY);
-                    STATE.ui.boolCandidate = { active, target };
-                    DOM.boolMenu.classList.remove('hidden');
-                    DOM.boolMenu.style.left = `${e.clientX}px`;
-                    DOM.boolMenu.style.top = `${e.clientY}px`;
-                }, 10);
+            // Boolean ops only allowed on Front face for now
+            if (isFront) {
+                const target = STATE.document.shapes.find(s => s !== active && s.closed && BooleanOps.checkIntersection(active, s));
+                
+                if (target) {
+                    // Show Menu
+                    setTimeout(() => {
+                        STATE.ui.boolCandidate = { active, target };
+                        DOM.boolMenu.classList.remove('hidden');
+                        DOM.boolMenu.style.left = `${e.clientX}px`;
+                        DOM.boolMenu.style.top = `${e.clientY}px`;
+                    }, 10);
+                }
             }
             DocumentOp.updateJSONExport();
         } else if (ui.dragging.type === 'JOINERY') {
