@@ -39,7 +39,7 @@ export const DrawingOp = {
                     name: `Part ${STATE.document.shapes.length + 1}`,
                     points: [...activeDrawing.points],
                     closed: true,
-                    thickness: 0.75,
+                    thickness: CONFIG.DEFAULT_THICKNESS,
                     activeFace: 'FRONT',
                     faceData: {
                         'FRONT': { tenons: [], cutouts: [] },

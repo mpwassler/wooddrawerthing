@@ -39,7 +39,7 @@ export const DraggingOp = {
             } else if (activeFace.startsWith('EDGE_')) {
                 const edgeIdx = parseInt(activeFace.split('_')[1]);
                 const edgeLen = shape.points[edgeIdx].lengthToNext || 0;
-                const thickness = shape.thickness || 0.75;
+                const thickness = shape.thickness || CONFIG.DEFAULT_THICKNESS;
                 startPt = { 
                     x: cx - (edgeLen * scale) / 2, 
                     y: cy - (thickness * scale) / 2 

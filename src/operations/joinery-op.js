@@ -40,23 +40,23 @@ export const JoineryOp = {
                         x: (bestPt.x - scale * last.w / 2 - startPt.x) / scale,
                         y: (bestPt.y - scale * last.h / 2 - startPt.y) / scale,
                         w: last.w, h: last.h, inset: last.inset || 0,
-                        depth: shape.thickness || 0.75
+                        depth: shape.thickness || CONFIG.DEFAULT_THICKNESS
                     });
                 }
             } else {
                 // For edges, just add a new one offset
                 const last = tenons[tenons.length - 1];
-                tenons.push({ x: last.x + 2, y: 0, w: 2, h: 1, inset: 0, depth: shape.thickness || 0.75 });
+                tenons.push({ x: last.x + 2, y: 0, w: 2, h: 1, inset: 0, depth: shape.thickness || CONFIG.DEFAULT_THICKNESS });
             }
         } else {
-            tenons.push({ x: 0, y: 0, w: 2, h: 1, inset: 0, depth: shape.thickness || 0.75 });
+            tenons.push({ x: 0, y: 0, w: 2, h: 1, inset: 0, depth: shape.thickness || CONFIG.DEFAULT_THICKNESS });
         }
     },
 
     addCutout: () => {
         const shape = STATE.selectedShape;
         const { cutouts } = Input.activeFaceData();
-        if (cutouts) cutouts.push({ x: 2, y: 0, w: 2, h: 1, depth: shape ? shape.thickness : 0.75 });
+        if (cutouts) cutouts.push({ x: 2, y: 0, w: 2, h: 1, depth: shape ? shape.thickness : CONFIG.DEFAULT_THICKNESS });
     },
 
     removeJoinery: (type, index) => {

@@ -6,6 +6,7 @@
 import * as THREE from 'https://esm.sh/three@0.160.0';
 import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/TransformControls.js';
+import { CONFIG } from '../core/config.js';
 
 export class WebGLRenderer {
     constructor(canvasElement) {
@@ -310,9 +311,11 @@ export class WebGLRenderer {
             
             
             
-                        const thickness = (shapeData.thickness || 0.75) * scale;
+                                                const thickness = (shapeData.thickness || CONFIG.DEFAULT_THICKNESS) * scale;
             
-                        const geom = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: true, bevelThickness: 1, bevelSize: 1 });
+            
+            
+                                                const geom = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: true, bevelThickness: 1, bevelSize: 1 });
             
                         const mat = this._getMeshMaterial('#e0c097');
             
@@ -348,9 +351,11 @@ export class WebGLRenderer {
             
             
             
-                            const itemDepth = (item.depth || 0.75) * scale;
+                                            const itemDepth = (item.depth || CONFIG.DEFAULT_THICKNESS) * scale;
             
-                            const itemGeom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: true, bevelSize: 1 });
+            
+            
+                                            const itemGeom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: true, bevelSize: 1 });
             
                             // Use a darker color for pockets to indicate subtraction
             

@@ -85,7 +85,7 @@ export const Input = {
                 } else if (shape.activeFace && shape.activeFace.startsWith('EDGE_')) {
                     const edgeIdx = parseInt(shape.activeFace.split('_')[1]);
                     const edgeLen = shape.points[edgeIdx].lengthToNext || 0;
-                    const thickness = shape.thickness || 0.75;
+                    const thickness = shape.thickness || CONFIG.DEFAULT_THICKNESS;
                     origin = { x: cx - (edgeLen * scale) / 2, y: cy - (thickness * scale) / 2 };
                 }
 
@@ -179,17 +179,15 @@ export const Input = {
 
     handleWheel: (e) => ViewportOp.handleZoom(e),
 
-    // --- UI Properties Handlers ---
+    // --- UI Routing ---
     updatePropertiesPanel: (shape) => {
         if (!shape) { DOM.propPanel.classList.add('hidden'); return; }
         DOM.propPanel.classList.remove('hidden');
         DOM.propName.value = shape.name;
-        DOM.propThickness.value = Geometry.formatInches(shape.thickness || 0.75);
+        DOM.propThickness.value = Geometry.formatInches(shape.thickness || CONFIG.DEFAULT_THICKNESS);
         let totalLen = 0;
         shape.points.forEach(p => { if (p.lengthToNext) totalLen += p.lengthToNext; });
         DOM.propLength.textContent = Geometry.formatInches(totalLen);
-        
-        Input.updateFaceSelector();
         Input.renderJoineryList();
         DocumentOp.updateJSONExport();
     },
@@ -323,7 +321,7 @@ export const Input = {
     handleThicknessMouseDown: (e) => {
         const shape = STATE.selectedShape;
         if (!shape) return;
-        STATE.ui.dragging = { type: 'THICKNESS', item: shape, startPos: { x: e.clientX, y: e.clientY }, initialVal: shape.thickness || 0.75 };
+        STATE.ui.dragging = { type: 'THICKNESS', item: shape, startPos: { x: e.clientX, y: e.clientY }, initialVal: shape.thickness || CONFIG.DEFAULT_THICKNESS };
         document.body.style.cursor = 'ew-resize';
         e.preventDefault();
     },
