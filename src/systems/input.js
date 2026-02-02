@@ -179,6 +179,12 @@ export const Input = {
 
     handleWheel: (e) => ViewportOp.handleZoom(e),
 
+    handleKeyDown: (e) => {
+        if (STATE.ui.mode === 'DRAW' && e.key === 'Escape') {
+            DrawingOp.cancel();
+        }
+    },
+
     // --- UI Routing ---
     updatePropertiesPanel: (shape) => {
         if (!shape) { DOM.propPanel.classList.add('hidden'); return; }

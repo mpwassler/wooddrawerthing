@@ -50,6 +50,7 @@ async function init() {
         if (STATE.ui.is3DOpen) {
             ThreedOp.handleKeyDown(e);
         }
+        Input.handleKeyDown(e);
     });
     
     window.addEventListener('mousemove', Input.handleMouseMove);

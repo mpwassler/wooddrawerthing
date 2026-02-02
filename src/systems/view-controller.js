@@ -221,15 +221,57 @@ export const ViewController = {
     },
 
     drawCompass: (screenPos) => {
-        const directions = [{x:0,y:-1}, {x:1,y:-1}, {x:1,y:0}, {x:1,y:1}, {x:0,y:1}, {x:-1,y:1}, {x:-1,y:0}, {x:-1,y:-1}];
-        directions.forEach(vec => {
-            const norm = Geometry.normalize(vec);
-            const pos = { x: screenPos.x + norm.x * CONFIG.ARROW_GRID_RADIUS, y: screenPos.y + norm.y * CONFIG.ARROW_GRID_RADIUS };
-            const isHighlighted = STATE.ui.activeDrawing.highlightedDirection && STATE.ui.activeDrawing.highlightedDirection.x === vec.x && STATE.ui.activeDrawing.highlightedDirection.y === vec.y;
-            let r = CONFIG.ARROW_SIZE / 2;
-            let c = isHighlighted ? CONFIG.COLORS.SHAPE_SELECTED : CONFIG.COLORS.SHAPE_HOVER;
-            if (isHighlighted) r *= 1.4;
-            STATE.overlay.drawCircle(pos, r, c);
+        const r1 = CONFIG.ARROW_GRID_RADIUS;
+        const r2 = r1 * 1.8;
+        
+        const directions = [
+            // Inner Ring
+            { vec: {x:0,y:-1}, label: '90°', r:r1 }, 
+            { vec: {x:1,y:-1}, label: '45°', r:r1 },
+            { vec: {x:1,y:0}, label: '0°', r:r1 },  
+            { vec: {x:1,y:1}, label: '315°', r:r1 },
+            { vec: {x:0,y:1}, label: '270°', r:r1 },  
+            { vec: {x:-1,y:1}, label: '225°', r:r1 },
+            { vec: {x:-1,y:0}, label: '180°', r:r1 }, 
+            { vec: {x:-1,y:-1}, label: '135°', r:r1 },
+            // Outer Ring (Approx vectors for 22.5 steps)
+            { vec: {x:0.38,y:-0.92}, label: '67.5°', r:r2 },
+            { vec: {x:0.92,y:-0.38}, label: '22.5°', r:r2 },
+            { vec: {x:0.92,y:0.38}, label: '337.5°', r:r2 },
+            { vec: {x:0.38,y:0.92}, label: '292.5°', r:r2 },
+            { vec: {x:-0.38,y:0.92}, label: '247.5°', r:r2 },
+            { vec: {x:-0.92,y:0.38}, label: '202.5°', r:r2 },
+            { vec: {x:-0.92,y:-0.38}, label: '157.5°', r:r2 },
+            { vec: {x:-0.38,y:-0.92}, label: '112.5°', r:r2 }
+        ];
+
+        directions.forEach(dir => {
+            const norm = Geometry.normalize(dir.vec);
+            const radius = dir.r;
+            const pos = { x: screenPos.x + norm.x * radius, y: screenPos.y + norm.y * radius };
+            
+            // Check highlight match loosely on direction
+            const h = STATE.ui.activeDrawing.highlightedDirection;
+            // Epsilon match for floats
+            const matchX = h && Math.abs(h.x - dir.vec.x) < 0.01;
+            const matchY = h && Math.abs(h.y - dir.vec.y) < 0.01;
+            // Also ensure radius matches to differentiate inner/outer overlaps
+            const matchR = h && Math.abs(h.r - radius) < 1;
+
+            if (matchX && matchY && matchR) {
+                // Draw connecting line
+                STATE.overlay.drawLine(screenPos, pos, CONFIG.COLORS.SHAPE_SELECTED, 2);
+                // Draw circle (slightly larger when highlighted)
+                const hRadius = (radius === r2 ? CONFIG.ARROW_SIZE / 3 : CONFIG.ARROW_SIZE / 2) * 1.4;
+                STATE.overlay.drawCircle(pos, hRadius, CONFIG.COLORS.SHAPE_SELECTED);
+                // Draw Label
+                const labelPos = { x: pos.x + norm.x * 20, y: pos.y + norm.y * 20 };
+                STATE.overlay.drawTextOutlined(dir.label, labelPos, 12, CONFIG.COLORS.TEXT, CONFIG.COLORS.TEXT_BG);
+            } else {
+                // Outer ring circles are smaller
+                const dotRadius = radius === r2 ? CONFIG.ARROW_SIZE / 3 : CONFIG.ARROW_SIZE / 2;
+                STATE.overlay.drawCircle(pos, dotRadius, CONFIG.COLORS.SHAPE_HOVER);
+            }
         });
     }
 };
