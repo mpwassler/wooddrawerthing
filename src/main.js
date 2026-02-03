@@ -79,6 +79,11 @@ async function init() {
     DOM.btnView2D.addEventListener('click', () => Input.switchView('2D'));
     DOM.btnView3D.addEventListener('click', () => Input.switchView('3D'));
     
+    // 3D Tools
+    DOM.btnResetCam.addEventListener('click', () => {
+        if (STATE.renderer3D) STATE.renderer3D.render3DScene(STATE.document.shapes, true);
+    });
+    
     // Properties
     DOM.input.addEventListener('keydown', (e) => { if(e.key === 'Enter') Input.handleInputApply(); });
     

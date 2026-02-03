@@ -15,6 +15,11 @@ export const DOM = {
     btnView2D: document.getElementById('view-2d-btn'),
     btnView3D: document.getElementById('view-3d-btn'),
     
+    // Toolbars
+    controls2D: document.getElementById('2d-controls'),
+    controls3D: document.getElementById('3d-controls'),
+    btnResetCam: document.getElementById('reset-cam-btn'),
+    
     // Properties Panel
     propPanel: document.getElementById('properties-panel'),
     propName: document.getElementById('prop-name'),

@@ -362,6 +362,10 @@ export const Input = {
         
         DOM.canvas.classList.toggle('hidden', is3D);
         DOM.canvas3D.classList.toggle('hidden', !is3D);
+        
+        // Toggle Toolbars
+        DOM.controls2D.classList.toggle('hidden', is3D);
+        DOM.controls3D.classList.toggle('hidden', !is3D);
 
         if (is3D) {
             Input.switchTool('SELECT'); // Force select mode

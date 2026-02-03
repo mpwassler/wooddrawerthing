@@ -10,8 +10,8 @@
     <div class="app-container">
         <!-- Controls -->
         <div class="controls">
-            <!-- Tools -->
-            <div class="mode-switcher">
+            <!-- 2D Tools -->
+            <div id="2d-controls" class="mode-switcher">
                 <button id="draw-mode-btn" class="active">Draw</button>
                 <button id="select-mode-btn">Select</button>
             </div>
@@ -30,6 +30,13 @@
             <button id="apply-measurement">Apply</button>
             <span id="total-board-feet" style="margin: 0 10px; font-weight: bold; color: #555;">0.0 BF</span>
             <button id="reset-drawing">Reset</button>
+        </div>
+
+        <!-- Floating 3D Toolbar -->
+        <div id="3d-controls" class="controls hidden" style="position: absolute; bottom: 20px; left: 20px; top: auto; right: auto;">
+            <div class="mode-switcher">
+                <button id="reset-cam-btn">Reset Camera</button>
+            </div>
         </div>
 
         <!-- Canvases (Stacked) -->
