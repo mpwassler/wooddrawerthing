@@ -68,11 +68,15 @@ async function init() {
     
     DOM.btnApply.addEventListener('click', Input.handleInputApply);
     DOM.btnReset.addEventListener('click', Input.handleReset);
-    DOM.btnModeDraw.addEventListener('click', () => Input.switchMode('DRAW'));
-    DOM.btnModeSelect.addEventListener('click', () => Input.switchMode('SELECT'));
+    // Event Listeners
+    DOM.btnModeDraw.addEventListener('click', () => Input.switchTool('DRAW'));
+    DOM.btnModeSelect.addEventListener('click', () => Input.switchTool('SELECT'));
     
-    DOM.btnView3D.addEventListener('click', Input.open3DMode);
-    DOM.btnClose3D.addEventListener('click', Input.close3DMode);
+    DOM.btnView2D.addEventListener('click', () => Input.switchView('2D'));
+    DOM.btnView3D.addEventListener('click', () => Input.switchView('3D'));
+    
+    // Properties
+    DOM.input.addEventListener('keydown', (e) => { if(e.key === 'Enter') Input.handleInputApply(); });
     
     // Properties Panel
     DOM.propName.addEventListener('input', Input.handlePropChange);

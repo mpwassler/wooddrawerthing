@@ -345,6 +345,10 @@ button:hover {
     width: 100%;
     height: 100%;
     display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: #fff; /* Ensure it covers the 2D canvas */
 }
 
 .close-btn {

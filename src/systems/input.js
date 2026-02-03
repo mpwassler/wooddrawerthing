@@ -357,7 +357,7 @@ export const Input = {
 
     handleReset: () => {
         STATE.document.shapes = [];
-        STATE.ui.drawState = 'IDLE';
+        Input.switchTool('SELECT'); // Reset tool
         STATE.ui.selectedShapeId = null;
         DOM.propPanel.classList.add('hidden');
         Input.updateUIState();
@@ -365,31 +365,63 @@ export const Input = {
     },
 
     updateUIState: () => {
-        const hasShapes = STATE.document.shapes.length > 0;
-        DOM.btnView3D.classList.toggle('hidden', !hasShapes);
+        // No longer toggling 3D button based on shapes
     },
 
-    switchMode: (mode) => {
-        STATE.ui.mode = mode;
+    switchTool: (mode) => {
+        STATE.ui.mode = mode; // 'DRAW' or 'SELECT'
         STATE.ui.drawState = 'IDLE';
         STATE.ui.activeDrawing.points = [];
+        
         DOM.btnModeDraw.classList.toggle('active', mode === 'DRAW');
         DOM.btnModeSelect.classList.toggle('active', mode === 'SELECT');
         DOM.canvas.style.cursor = mode === 'DRAW' ? 'crosshair' : 'default';
     },
 
-    open3DMode: () => {
-        if (STATE.document.shapes.length === 0) return;
+    switchView: (viewMode) => {
+        // Prevent 3D if no shapes
+        if (viewMode === '3D' && STATE.document.shapes.length === 0) {
+            alert("Draw a shape first!");
+            return;
+        }
+
+        const is3D = viewMode === '3D';
+        STATE.ui.is3DOpen = is3D;
+
+        // Capture size BEFORE hiding the 2D canvas
+        const rect = DOM.canvas.getBoundingClientRect();
+
+        DOM.btnView2D.classList.toggle('active', !is3D);
+        DOM.btnView3D.classList.toggle('active', is3D);
+        
+        DOM.canvas.classList.toggle('hidden', is3D);
+        DOM.canvas3D.classList.toggle('hidden', !is3D);
+
+        if (is3D) {
+            Input.open3DMode(rect);
+        } else {
+            Input.close3DMode();
+        }
+    },
+
+    open3DMode: (rect) => {
         STATE.ui.is3DOpen = true;
-        DOM.modal3D.classList.remove('hidden');
-        const rect = DOM.canvas3D.getBoundingClientRect();
-        STATE.renderer3D.resize(rect.width, rect.height);
+        
+        // Ensure visible before sizing (already handled in switchView, but safe to keep)
+        DOM.canvas3D.classList.remove('hidden');
+        
+        // Use passed rect or fallback
+        const width = rect ? rect.width : DOM.canvas.clientWidth;
+        const height = rect ? rect.height : DOM.canvas.clientHeight;
+
+        STATE.renderer3D.resize(width, height);
+        STATE.renderer3D.setMode('3D');
         STATE.renderer3D.render3DScene(STATE.document.shapes);
     },
 
     close3DMode: () => {
         STATE.ui.is3DOpen = false;
-        DOM.modal3D.classList.add('hidden');
-        STATE.renderer3D.clear3D();
+        STATE.renderer3D.setMode('2D'); // Reset to 2D state/cleanup
+        STATE.renderer3D.clear3D(); 
     }
 };

@@ -12,6 +12,7 @@ export const DOM = {
     totalBoardFeet: document.getElementById('total-board-feet'),
     btnModeDraw: document.getElementById('draw-mode-btn'),
     btnModeSelect: document.getElementById('select-mode-btn'),
+    btnView2D: document.getElementById('view-2d-btn'),
     btnView3D: document.getElementById('view-3d-btn'),
     
     // Properties Panel
@@ -25,17 +26,18 @@ export const DOM = {
     btnAddTenon: document.getElementById('add-tenon-btn'),
     joineryList: document.getElementById('joinery-list'),
 
-    // 3D Modal
-    modal3D: document.getElementById('modal-3d'),
+    // 3D Canvas
     canvas3D: document.getElementById('canvas-3d'),
-    btnView3D: document.getElementById('view-3d-btn'),
-    btnClose3D: document.getElementById('close-3d-btn'),
 
     // Boolean Menu
     boolMenu: document.getElementById('boolean-menu'),
     btnBoolUnion: document.getElementById('bool-union-btn'),
     btnBoolSubtract: document.getElementById('bool-subtract-btn'),
     btnBoolCancel: document.getElementById('bool-cancel-btn'),
+
+    // Projects
+    projectList: document.getElementById('project-list'),
+    btnAddProject: document.getElementById('add-project-btn'),
 
     // Projects
     projectList: document.getElementById('project-list'),
