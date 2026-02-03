@@ -7,6 +7,7 @@ import { STATE } from '../core/state.js';
 import * as THREE from 'https://esm.sh/three@0.160.0';
 import { DocumentOp } from './document-op.js';
 import { Geometry } from '../utils/geometry.js';
+import { Input } from '../systems/input.js';
 
 export const ThreedOp = {
     handleMouseDown: (e) => {
@@ -37,16 +38,23 @@ export const ThreedOp = {
                 // Attach the gizmo
                 renderer3D.transformControls.attach(obj);
                 
-                // Track this as our selected assembly part
+                // Track this as our selected assembly part AND selected shape for properties
                 STATE.ui.selectedAssemblyId = obj.userData.shapeId;
+                STATE.ui.selectedShapeId = obj.userData.shapeId;
                 
-                // Prevent OrbitControls from interfering (handled by event listener in renderer)
+                // Update Properties Panel
+                const shape = STATE.document.shapes.find(s => s.id === obj.userData.shapeId);
+                if (shape) {
+                    Input.updatePropertiesPanel(shape);
+                }
             }
         } else {
             // Clicked empty space
             if (!renderer3D.transformControls.dragging) {
                 renderer3D.transformControls.detach();
                 STATE.ui.selectedAssemblyId = null;
+                STATE.ui.selectedShapeId = null;
+                Input.updatePropertiesPanel(null); // Hide panel
             }
         }
     },

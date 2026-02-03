@@ -153,6 +153,7 @@ export const Input = {
             document.body.style.cursor = 'default';
             DocumentOp.updateJSONExport();
             ProjectOp.calculateTotalBoardFeet();
+            Input.refreshView();
         } else if (ui.dragging.type === 'SHAPE') {
             const active = ui.dragging.item;
             const isFront = !active.activeFace || active.activeFace === 'FRONT';
@@ -187,6 +188,14 @@ export const Input = {
     handleKeyDown: (e) => {
         if (STATE.ui.mode === 'DRAW' && e.key === 'Escape') {
             DrawingOp.cancel();
+        }
+    },
+
+    refreshView: () => {
+        if (STATE.ui.is3DOpen) {
+            // Rebuild the 3D scene to reflect geometry changes
+            STATE.renderer3D.clear3D();
+            STATE.renderer3D.render3DScene(STATE.document.shapes);
         }
     },
 
@@ -261,7 +270,7 @@ export const Input = {
         const del = document.createElement('button');
         del.innerHTML = '&times;';
         del.className = 'joinery-delete-btn';
-        del.onclick = () => { JoineryOp.removeJoinery(type, index); Input.renderJoineryList(); };
+        del.onclick = () => { JoineryOp.removeJoinery(type, index); Input.renderJoineryList(); Input.refreshView(); };
         top.appendChild(del);
         div.appendChild(top);
 
@@ -271,7 +280,11 @@ export const Input = {
             dims.appendChild(document.createTextNode(l));
             const i = document.createElement('input');
             i.type = 'number'; i.value = data[f]; i.step = 0.125; i.style.width = '40px';
-            i.onchange = (e) => { data[f] = parseFloat(e.target.value); DocumentOp.updateJSONExport(); };
+            i.onchange = (e) => { 
+                data[f] = parseFloat(e.target.value); 
+                DocumentOp.updateJSONExport(); 
+                Input.refreshView(); 
+            };
             dims.appendChild(i);
         };
         addInp('w', 'W:'); addInp('h', 'H:');
@@ -281,14 +294,20 @@ export const Input = {
         DOM.joineryList.appendChild(div);
     },
 
-    handleAddCutout: () => { JoineryOp.addCutout(); Input.renderJoineryList(); },
-    handleAddTenon: () => { JoineryOp.addTenon(); Input.renderJoineryList(); },
-    handlePropChange: () => DocumentOp.updateShapeName(DOM.propName.value),
+    handleAddCutout: () => { JoineryOp.addCutout(); Input.renderJoineryList(); Input.refreshView(); },
+    handleAddTenon: () => { JoineryOp.addTenon(); Input.renderJoineryList(); Input.refreshView(); },
+    handlePropChange: () => { DocumentOp.updateShapeName(DOM.propName.value); Input.refreshView(); },
     handleDeleteShape: () => {
         DocumentOp.deleteSelectedShape();
         Input.updateUIState();
+        Input.refreshView();
     },
-    handleJSONImport: () => { if(DocumentOp.handleJSONImport()) Input.updatePropertiesPanel(STATE.selectedShape); },
+    handleJSONImport: () => { 
+        if(DocumentOp.handleJSONImport()) {
+            Input.updatePropertiesPanel(STATE.selectedShape);
+            Input.refreshView();
+        }
+    },
     
     hideBooleanMenu: () => {
         DOM.boolMenu.classList.add('hidden');
@@ -398,8 +417,13 @@ export const Input = {
         DOM.canvas3D.classList.toggle('hidden', !is3D);
 
         if (is3D) {
+            Input.switchTool('SELECT'); // Force select mode
+            DOM.btnModeDraw.disabled = true;
+            DOM.btnModeDraw.classList.add('disabled'); // Visual feedback
             Input.open3DMode(rect);
         } else {
+            DOM.btnModeDraw.disabled = false;
+            DOM.btnModeDraw.classList.remove('disabled');
             Input.close3DMode();
         }
     },

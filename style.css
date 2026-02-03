@@ -99,6 +99,14 @@ button:hover {
     background-color: #0056b3;
 }
 
+button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #ccc;
+    color: #666;
+    pointer-events: none;
+}
+
 #reset-drawing {
     background-color: #dc3545;
 }

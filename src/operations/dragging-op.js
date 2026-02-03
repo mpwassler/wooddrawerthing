@@ -7,6 +7,7 @@ import { STATE } from '../core/state.js';
 import { Geometry } from '../utils/geometry.js';
 import { CONFIG } from '../core/config.js';
 import { DOM } from '../core/dom.js';
+import { Input } from '../systems/input.js';
 
 export const DraggingOp = {
     /**
@@ -101,6 +102,7 @@ export const DraggingOp = {
             let newVal = dragging.initialVal + (steps * step);
             dragging.item.thickness = Math.max(0.125, newVal);
             DOM.propThickness.value = Geometry.formatInches(dragging.item.thickness);
+            Input.refreshView();
         }
     }
 };
