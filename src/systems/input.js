@@ -113,6 +113,9 @@ export const Input = {
     
     // ... (keep MouseMove, MouseUp, Wheel, Keys as is) ...
     handleMouseMove: (e) => {
+        // If 3D mode is open, only allow UI dragging (like Thickness), block canvas interactions
+        if (STATE.ui.is3DOpen && !STATE.ui.dragging.type) return;
+
         const mouseScreen = { x: e.clientX, y: e.clientY };
         const mouseWorld = Geometry.screenToWorld(mouseScreen, STATE.ui.view);
 
