@@ -8,27 +8,34 @@ import { Geometry } from '../utils/geometry.js';
 import { CONFIG } from '../core/config.js';
 import { Input } from '../systems/input.js';
 import { TenonModel, CutoutModel } from '../core/model.js';
+import { Store } from '../core/store.js';
 
 export const JoineryOp = {
     /**
      * Adds a new Tenon to the currently selected shape and face.
-     * Uses geometry logic to mirror position if on FRONT face.
      */
     addTenon: () => {
         const shape = STATE.selectedShape;
         if (!shape) return;
         
-        // Use active face data
-        const { tenons } = Input.activeFaceData();
+        // Clone for immutability
+        const newShape = structuredClone(shape);
+        const activeFace = shape.activeFace || 'FRONT';
+        const faceData = newShape.faceData[activeFace] || { tenons: [], cutouts: [] };
+        // Ensure structure exists if it was missing
+        if (!newShape.faceData[activeFace]) newShape.faceData[activeFace] = faceData;
+        
+        const tenons = faceData.tenons || [];
+        faceData.tenons = tenons;
+        
         const thickness = shape.thickness || CONFIG.DEFAULT_THICKNESS;
         
+        // Calculate Position
         if (tenons.length > 0) {
-            // Mirroring logic (Front face only for now, edges get basic stack)
-            if (STATE.ui.activeFace === 'FRONT') {
-                const target = JoineryOp.calculateMirrorPosition(shape, tenons);
+            if (activeFace === 'FRONT') {
+                const target = JoineryOp.calculateMirrorPosition(shape, tenons); // Use original shape for calc
                 const pts = shape.points;
                 let bestPt = null, minD = Infinity;
-                
                 for (let i = 0; i < pts.length; i++) {
                     const p1 = pts[i], p2 = pts[(i + 1) % pts.length];
                     const closest = Geometry.closestPointOnSegment(target, p1, p2);
@@ -47,13 +54,16 @@ export const JoineryOp = {
                     ));
                 }
             } else {
-                // For edges, just add a new one offset
                 const last = tenons[tenons.length - 1];
                 tenons.push(TenonModel.create(last.x + 2, 0, 2, 1, thickness, 0));
             }
         } else {
             tenons.push(TenonModel.create(0, 0, 2, 1, thickness, 0));
         }
+
+        // Dispatch Update
+        const newShapes = STATE.document.shapes.map(s => s.id === shape.id ? newShape : s);
+        Store.dispatch('JOINERY_ADD', { document: { shapes: newShapes } });
     },
 
     /**
@@ -61,21 +71,40 @@ export const JoineryOp = {
      */
     addCutout: () => {
         const shape = STATE.selectedShape;
-        const { cutouts } = Input.activeFaceData();
-        const thickness = shape ? (shape.thickness || CONFIG.DEFAULT_THICKNESS) : CONFIG.DEFAULT_THICKNESS;
+        if (!shape) return;
+
+        const newShape = structuredClone(shape);
+        const activeFace = shape.activeFace || 'FRONT';
+        const faceData = newShape.faceData[activeFace] || { tenons: [], cutouts: [] };
+        if (!newShape.faceData[activeFace]) newShape.faceData[activeFace] = faceData;
+
+        const cutouts = faceData.cutouts || [];
+        faceData.cutouts = cutouts;
         
-        if (cutouts) cutouts.push(CutoutModel.create(2, 0, 2, 1, thickness));
+        const thickness = shape.thickness || CONFIG.DEFAULT_THICKNESS;
+        cutouts.push(CutoutModel.create(2, 0, 2, 1, thickness));
+
+        const newShapes = STATE.document.shapes.map(s => s.id === shape.id ? newShape : s);
+        Store.dispatch('JOINERY_ADD', { document: { shapes: newShapes } });
     },
 
     /**
      * Removes a joinery item (tenon or cutout) from the list.
-     * @param {string} type - 'cutout' or 'tenon'
-     * @param {number} index - Index in the array
      */
     removeJoinery: (type, index) => {
-        const data = Input.activeFaceData();
-        const list = type === 'cutout' ? data.cutouts : data.tenons;
+        const shape = STATE.selectedShape;
+        if (!shape) return;
+
+        const newShape = structuredClone(shape);
+        const activeFace = shape.activeFace || 'FRONT';
+        const faceData = newShape.faceData[activeFace];
+        if (!faceData) return;
+
+        const list = type === 'cutout' ? faceData.cutouts : faceData.tenons;
         if (list) list.splice(index, 1);
+
+        const newShapes = STATE.document.shapes.map(s => s.id === shape.id ? newShape : s);
+        Store.dispatch('JOINERY_REMOVE', { document: { shapes: newShapes } });
     },
 
     /**

@@ -135,6 +135,9 @@ export class WebGLRenderer {
 
     /** Clears all generated 3D meshes */
     clear3D() {
+        if (this.transformControls) {
+            this.transformControls.detach();
+        }
         this.extrudedMeshes.forEach(mesh => {
             this.scene.remove(mesh);
             if (mesh.geometry) mesh.geometry.dispose();
@@ -263,7 +266,7 @@ export class WebGLRenderer {
      * Handles front face, edge details, and joinery.
      * @param {Array} shapes - List of shape data objects.
      */
-    render3DScene(shapes) {
+    render3DScene(shapes, resetCamera = false) {
         if (this.extrudedMeshes.length > 0) return; 
         const self = this;
 
@@ -277,6 +280,7 @@ export class WebGLRenderer {
         let hasShapes = false;
         
         shapes.forEach(shapeData => {
+            // ... (keep rendering loop same) ...
             if (!shapeData.closed || shapeData.points.length < 3) return;
 
             const group = new THREE.Group();
@@ -391,7 +395,7 @@ export class WebGLRenderer {
             hasShapes = true;
         });
 
-        if (hasShapes) {
+        if (hasShapes && resetCamera) {
             const center = new THREE.Vector3(); bounds.getCenter(center);
             const size = new THREE.Vector3(); bounds.getSize(size);
             const dist = Math.max(size.x, size.y, size.z) * 1.5;

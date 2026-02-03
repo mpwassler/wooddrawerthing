@@ -7,64 +7,100 @@ import { STATE } from '../core/state.js';
 import { Geometry } from '../utils/geometry.js';
 import { CONFIG } from '../core/config.js';
 import { ShapeModel } from '../core/model.js';
+import { Store } from '../core/store.js';
 
 export const DrawingOp = {
     /**
      * Handles clicks on the canvas during drawing mode.
-     * Manages state transitions: IDLE -> START_SHAPE -> DRAWING_LINE.
-     * Finalizes the shape when closing the loop.
-     * @param {Object} mouseWorld - Mouse position in world coordinates.
-     * @param {Object} mouseScreen - Mouse position in screen coordinates.
-     * @returns {Object|null} The new shape object if created, otherwise null.
+     * Manages state transitions via Store Dispatch.
      */
     handleDrawClick: (mouseWorld, mouseScreen) => {
         const { ui } = STATE;
         const { activeDrawing } = ui;
 
         if (ui.drawState === 'IDLE') {
-            activeDrawing.points = [mouseWorld];
-            ui.drawState = 'START_SHAPE';
+            Store.dispatch('DRAW_START', { 
+                ui: { 
+                    drawState: 'START_SHAPE',
+                    activeDrawing: { ...ui.activeDrawing, points: [mouseWorld] }
+                }
+            });
         } else if (ui.drawState === 'START_SHAPE') {
             if (activeDrawing.highlightedDirection) {
-                activeDrawing.selectedDirection = activeDrawing.highlightedDirection;
-                ui.drawState = 'DRAWING_LINE';
-                activeDrawing.highlightedDirection = null;
+                Store.dispatch('DRAW_DIRECTION_SET', {
+                    ui: {
+                        drawState: 'DRAWING_LINE',
+                        activeDrawing: { 
+                            ...ui.activeDrawing, 
+                            selectedDirection: activeDrawing.highlightedDirection,
+                            highlightedDirection: null 
+                        }
+                    }
+                });
             } else {
-                ui.drawState = 'IDLE';
-                return DrawingOp.handleDrawClick(mouseWorld, mouseScreen); 
+                // Reset to IDLE then restart (recursive-ish behavior but via store)
+                // Actually, just restart drawing at new point
+                Store.dispatch('DRAW_RESET', {
+                    ui: {
+                        drawState: 'IDLE',
+                        activeDrawing: { points: [mouseWorld], tempLine: null, alignmentGuide: null } // Immediately start new?
+                    }
+                });
+                // To match previous logic: effectively click again.
+                // Simpler: Just dispatch DRAW_START with new point.
+                Store.dispatch('DRAW_START', { 
+                    ui: { 
+                        drawState: 'START_SHAPE',
+                        activeDrawing: { ...ui.activeDrawing, points: [mouseWorld] }
+                    }
+                });
             }
         } else if (ui.drawState === 'DRAWING_LINE') {
             const activePt = activeDrawing.points[activeDrawing.points.length - 1];
             const target = activeDrawing.snapTarget || activeDrawing.tempLine.end;
             
             const dist = Geometry.dist(activePt, target);
-            activePt.lengthToNext = dist / CONFIG.SCALE_PIXELS_PER_INCH;
+            // We can't mutate activePt directly if we want Flux purity, but points are objects.
+            // For now, let's assume points are mutable during drawing or we replace the array.
+            // A cleaner way: Clone the points array.
+            const newPoints = [...activeDrawing.points];
+            newPoints[newPoints.length - 1].lengthToNext = dist / CONFIG.SCALE_PIXELS_PER_INCH;
 
             if (activeDrawing.snapTarget) {
-                // Finalize Shape using Model Factory
+                // Finalize Shape
                 const name = `Part ${STATE.document.shapes.length + 1}`;
-                const newShape = ShapeModel.create(activeDrawing.points, name);
+                const newShape = ShapeModel.create(newPoints, name);
                 
-                STATE.document.shapes.push(newShape);
-                
-                // Cleanup drawing state
-                activeDrawing.points = [];
-                activeDrawing.tempLine = null;
-                activeDrawing.alignmentGuide = null;
-                activeDrawing.selectedDirection = null;
-                activeDrawing.snapTarget = null;
-                ui.drawState = 'IDLE';
+                // Dispatch ADD_SHAPE
+                // This will also need to handle the UI reset
+                Store.dispatch('SHAPE_ADD', {
+                    document: { shapes: [...STATE.document.shapes, newShape] },
+                    ui: { 
+                        drawState: 'IDLE',
+                        activeDrawing: { points: [], tempLine: null, alignmentGuide: null, snapTarget: null },
+                        selectedShapeId: newShape.id,
+                        mode: 'SELECT' // Switch tool
+                    }
+                });
                 
                 return newShape; 
             } else {
-                activeDrawing.points.push(target);
-                ui.drawState = 'START_SHAPE';
+                // Add Point
+                newPoints.push(target);
+                Store.dispatch('DRAW_POINT_ADDED', {
+                    ui: {
+                        drawState: 'START_SHAPE',
+                        activeDrawing: { 
+                            ...ui.activeDrawing, 
+                            points: newPoints,
+                            tempLine: null,
+                            alignmentGuide: null,
+                            selectedDirection: null,
+                            snapTarget: null
+                        }
+                    }
+                });
             }
-            
-            activeDrawing.tempLine = null;
-            activeDrawing.alignmentGuide = null;
-            activeDrawing.selectedDirection = null;
-            activeDrawing.snapTarget = null;
         }
         return null;
     },
@@ -205,13 +241,18 @@ export const DrawingOp = {
      * Cancels the current drawing operation and resets state.
      */
     cancel: () => {
-        const { ui } = STATE;
-        ui.drawState = 'IDLE';
-        ui.activeDrawing.points = [];
-        ui.activeDrawing.tempLine = null;
-        ui.activeDrawing.alignmentGuide = null;
-        ui.activeDrawing.selectedDirection = null;
-        ui.activeDrawing.snapTarget = null;
-        ui.activeDrawing.highlightedDirection = null;
+        Store.dispatch('DRAW_CANCEL', {
+            ui: {
+                drawState: 'IDLE',
+                activeDrawing: { 
+                    points: [], 
+                    tempLine: null, 
+                    alignmentGuide: null, 
+                    selectedDirection: null, 
+                    snapTarget: null, 
+                    highlightedDirection: null 
+                }
+            }
+        });
     }
 };

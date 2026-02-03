@@ -5,6 +5,7 @@
 
 import { STATE } from './core/state.js';
 import { DOM } from './core/dom.js';
+import { Store } from './core/store.js';
 import { Input } from './systems/input.js';
 import { ThreedOp } from './operations/threed-op.js';
 import { ProjectOp } from './operations/project-op.js';
@@ -13,6 +14,9 @@ import { CanvasRenderer } from './renderers/canvas-renderer.js';
 import { WebGLRenderer } from './renderers/webgl-renderer.js';
 
 async function init() {
+    // 0. Initialize Store
+    Store.init();
+
     // 1. Initialize Storage & Projects
     await ProjectOp.init();
 

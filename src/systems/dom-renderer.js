@@ -66,8 +66,6 @@ export const DOMRenderer = {
         del.className = 'joinery-delete-btn';
         del.onclick = () => { 
             JoineryOp.removeJoinery(type, index); 
-            DOMRenderer.renderJoineryList(STATE.selectedShape);
-            if(window.InputRef) window.InputRef.refreshView(); 
         };
         top.appendChild(del);
         div.appendChild(top);

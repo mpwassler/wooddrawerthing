@@ -49,12 +49,7 @@ export const Input = {
         if (STATE.ui.mode === 'DRAW') {
             const mouseWorld = Geometry.screenToWorld({ x: e.clientX, y: e.clientY }, STATE.ui.view);
             const mouseScreen = { x: e.clientX, y: e.clientY };
-            const newShape = DrawingOp.handleDrawClick(mouseWorld, mouseScreen);
-            if (newShape) {
-                STATE.ui.selectedShapeId = newShape.id;
-                DOMRenderer.updatePropertiesPanel(newShape);
-                Input.updateUIState();
-            }
+            DrawingOp.handleDrawClick(mouseWorld, mouseScreen);
         } else {
             SelectionOp.handleSelect(e.ctrlKey);
             DOMRenderer.updatePropertiesPanel(STATE.selectedShape);
@@ -234,8 +229,8 @@ export const Input = {
     // renderJoineryList moved to DOMRenderer
     // createJoineryItemDOM moved to DOMRenderer
 
-    handleAddCutout: () => { JoineryOp.addCutout(); DOMRenderer.renderJoineryList(STATE.selectedShape); Input.refreshView(); Input.logState('Joinery Added'); },
-    handleAddTenon: () => { JoineryOp.addTenon(); DOMRenderer.renderJoineryList(STATE.selectedShape); Input.refreshView(); Input.logState('Joinery Added'); },
+    handleAddCutout: () => JoineryOp.addCutout(),
+    handleAddTenon: () => JoineryOp.addTenon(),
     handlePropChange: () => { DocumentOp.updateShapeName(DOM.propName.value); Input.refreshView(); Input.logState('Property Change'); },
     handleDeleteShape: () => {
         DocumentOp.deleteSelectedShape();
@@ -259,13 +254,19 @@ export const Input = {
         if (newPoints) {
             const newShape = ShapeModel.fromParent(active, newPoints);
             newShape.selected = true;
-            STATE.document.shapes = STATE.document.shapes.filter(s => s !== active && s !== target);
-            STATE.document.shapes.push(newShape);
-            STATE.ui.selectedShapeId = newShape.id;
-            DOMRenderer.updatePropertiesPanel(newShape);
-            Input.updateUIState();
-            ProjectOp.calculateTotalBoardFeet();
-            Input.logState('Boolean Union');
+            
+            // Calculate new shape list
+            const newShapes = STATE.document.shapes.filter(s => s !== active && s !== target);
+            newShapes.push(newShape);
+
+            Store.dispatch('SHAPE_BOOLEAN_UNION', {
+                document: { shapes: newShapes },
+                ui: { selectedShapeId: newShape.id }
+            });
+            // ProjectOp.calculateTotalBoardFeet() needs to be called by Store or subscriber
+            // For now, we can leave it here or move it. 
+            // Better: Add a listener in ProjectOp for 'APP_STATE_CHANGED'?
+            ProjectOp.calculateTotalBoardFeet(); 
         }
         Input.hideBooleanMenu();
     },
@@ -277,13 +278,15 @@ export const Input = {
         if (newPoints) {
              const newShape = ShapeModel.fromParent(target, newPoints);
              newShape.selected = true;
-             STATE.document.shapes = STATE.document.shapes.filter(s => s !== active && s !== target);
-             STATE.document.shapes.push(newShape);
-             STATE.ui.selectedShapeId = newShape.id;
-             DOMRenderer.updatePropertiesPanel(newShape);
-             Input.updateUIState();
+             
+             const newShapes = STATE.document.shapes.filter(s => s !== active && s !== target);
+             newShapes.push(newShape);
+
+             Store.dispatch('SHAPE_BOOLEAN_SUBTRACT', {
+                document: { shapes: newShapes },
+                ui: { selectedShapeId: newShape.id }
+             });
              ProjectOp.calculateTotalBoardFeet();
-             Input.logState('Boolean Subtract');
         }
         Input.hideBooleanMenu();
     },
@@ -381,7 +384,7 @@ export const Input = {
 
         STATE.renderer3D.resize(width, height);
         STATE.renderer3D.setMode('3D');
-        STATE.renderer3D.render3DScene(STATE.document.shapes);
+        STATE.renderer3D.render3DScene(STATE.document.shapes, true);
     },
 
     close3DMode: () => {

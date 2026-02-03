@@ -1,45 +1,53 @@
-/**
- * @fileoverview Selection Operations
- * Handles hit-testing, hovering, and selecting shapes.
- */
-
 import { STATE } from '../core/state.js';
 import { Geometry } from '../utils/geometry.js';
-import { CONFIG } from '../core/config.js';
-import { DOM } from '../core/dom.js';
+import { Store } from '../core/store.js';
 
 export const SelectionOp = {
+    handleSelect: (isMultiSelect) => {
+        // Find shape under cursor
+        const { hoveredShapeId } = STATE.ui;
+        
+        if (hoveredShapeId) {
+            Store.dispatch('SELECT_SHAPE', { ui: { selectedShapeId: hoveredShapeId } });
+        } else {
+            Store.dispatch('DESELECT', { ui: { selectedShapeId: null } });
+        }
+    },
+
     updateHoverState: (mouseWorld) => {
-        const shapesRev = [...STATE.document.shapes].reverse();
-        STATE.ui.hoveredShapeId = null;
-        DOM.canvas.style.cursor = 'default';
+        // Simple hit test
+        let found = null;
+        // Check in reverse order (top to bottom)
+        for (let i = STATE.document.shapes.length - 1; i >= 0; i--) {
+            const shape = STATE.document.shapes[i];
+            
+            // Bounding box check first for speed (optimization for later)
+            
+            if (SelectionOp.pointInPolygon(mouseWorld, shape.points)) {
+                found = shape;
+                break;
+            }
+        }
 
-        for (const shape of shapesRev) {
-            for (let i = 0; i < shape.points.length; i++) {
-                const p1 = shape.points[i];
-                const p2 = shape.points[(i + 1) % shape.points.length];
-                if (!shape.closed && i === shape.points.length - 1) continue;
-
-                const l2 = Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2);
-                if (l2 === 0) continue;
-                
-                const t = Math.max(0, Math.min(1, ((mouseWorld.x - p1.x) * (p2.x - p1.x) + (mouseWorld.y - p1.y) * (p2.y - p1.y)) / l2));
-                const proj = { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
-                
-                if (Geometry.dist(mouseWorld, proj) * STATE.ui.view.zoom < CONFIG.CLICK_TOLERANCE_SCREEN_PX) {
-                    STATE.ui.hoveredShapeId = shape.id;
-                    DOM.canvas.style.cursor = 'pointer';
-                    return;
-                }
+        if (found) {
+            if (STATE.ui.hoveredShapeId !== found.id) {
+                Store.dispatch('HOVER_SHAPE', { ui: { hoveredShapeId: found.id } });
+            }
+        } else {
+            if (STATE.ui.hoveredShapeId !== null) {
+                Store.dispatch('HOVER_CLEAR', { ui: { hoveredShapeId: null } });
             }
         }
     },
 
-    handleSelect: (ctrlKey) => {
-        if (STATE.ui.hoveredShapeId) {
-            STATE.ui.selectedShapeId = STATE.ui.hoveredShapeId;
-        } else if (!ctrlKey) {
-            STATE.ui.selectedShapeId = null;
+    pointInPolygon: (p, points) => {
+        let inside = false;
+        for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+            const xi = points[i].x, yi = points[i].y;
+            const xj = points[j].x, yj = points[j].y;
+            const intersect = ((yi > p.y) !== (yj > p.y)) && (p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
         }
+        return inside;
     }
 };

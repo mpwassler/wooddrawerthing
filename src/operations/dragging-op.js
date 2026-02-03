@@ -1,6 +1,6 @@
 /**
  * @fileoverview Dragging Operations
- * Handles movement of shapes, joinery, and properties sliders.
+ * Handles movement of shapes, joinery, and properties sliders via Store Dispatch.
  */
 
 import { STATE } from '../core/state.js';
@@ -8,6 +8,7 @@ import { Geometry } from '../utils/geometry.js';
 import { CONFIG } from '../core/config.js';
 import { DOM } from '../core/dom.js';
 import { Input } from '../systems/input.js';
+import { Store } from '../core/store.js';
 
 export const DraggingOp = {
     /**
@@ -23,8 +24,18 @@ export const DraggingOp = {
             const shape = dragging.item;
             const dx = mouseWorld.x - dragging.lastPos.x;
             const dy = mouseWorld.y - dragging.lastPos.y;
-            shape.points.forEach(p => { p.x += dx; p.y += dy; });
-            dragging.lastPos = { ...mouseWorld };
+            
+            // Clone points and update
+            const newPoints = shape.points.map(p => ({ x: p.x + dx, y: p.y + dy, lengthToNext: p.lengthToNext }));
+            
+            // Dispatch Update
+            const newShape = { ...shape, points: newPoints };
+            const newShapes = STATE.document.shapes.map(s => s.id === shape.id ? newShape : s);
+            
+            Store.dispatch('SHAPE_DRAG_MOVE', { 
+                document: { shapes: newShapes },
+                ui: { dragging: { ...dragging, lastPos: { ...mouseWorld }, item: newShape } } // Update ref in dragging state
+            });
         }
 
         else if (dragging.type === 'JOINERY') {
@@ -36,7 +47,7 @@ export const DraggingOp = {
             
             let newWorldX = mouseWorld.x - offset.x;
             let newWorldY = mouseWorld.y - offset.y;
-            ui.activeDrawing.alignmentGuide = null;
+            let alignmentGuide = null;
 
             const halfW = item.w * scale / 2;
             const halfH = item.h * scale / 2;
@@ -63,14 +74,14 @@ export const DraggingOp = {
                         tCenterX = newWorldX + halfW;
                         if (Math.abs(tCenterY - centroid.y) < 50) {
                             newWorldY = centroid.y - halfH;
-                            ui.activeDrawing.alignmentGuide = { start: {x: centroid.x - 20, y: centroid.y}, end: {x: centroid.x + 20, y: centroid.y} };
+                            alignmentGuide = { start: {x: centroid.x - 20, y: centroid.y}, end: {x: centroid.x + 20, y: centroid.y} };
                         }
                     } else {
                         newWorldY = Math.abs((newWorldY + item.h * scale) - bestSnap.closest.y) < Math.abs(newWorldY - bestSnap.closest.y) ? bestSnap.closest.y - item.h * scale : bestSnap.closest.y;
                         tCenterY = newWorldY + halfH;
                         if (Math.abs(tCenterX - centroid.x) < 50) {
                             newWorldX = centroid.x - halfW;
-                            ui.activeDrawing.alignmentGuide = { start: {x: centroid.x, y: centroid.y - 20}, end: {x: centroid.x, y: centroid.y + 20} };
+                            alignmentGuide = { start: {x: centroid.x, y: centroid.y - 20}, end: {x: centroid.x, y: centroid.y + 20} };
                         }
                     }
                 }
@@ -78,21 +89,50 @@ export const DraggingOp = {
                 // Cutout Snapping
                 if (Math.abs(tCenterX - centroid.x) < 30) { 
                     newWorldX = centroid.x - halfW; 
-                    ui.activeDrawing.alignmentGuide = { start: {x: centroid.x, y: centroid.y - 20}, end: {x: centroid.x, y: centroid.y + 20} }; 
+                    alignmentGuide = { start: {x: centroid.x, y: centroid.y - 20}, end: {x: centroid.x, y: centroid.y + 20} }; 
                 }
                 if (Math.abs(tCenterY - centroid.y) < 30) { 
                     newWorldY = centroid.y - halfH; 
-                    ui.activeDrawing.alignmentGuide = { start: {x: centroid.x - 20, y: centroid.y}, end: {x: centroid.x + 20, y: centroid.y} }; 
+                    alignmentGuide = { start: {x: centroid.x - 20, y: centroid.y}, end: {x: centroid.x + 20, y: centroid.y} }; 
                 }
             }
 
-            // Persistence
+            // Calculate new local Item coordinates
+            let newItemX, newItemY;
             if (activeFace === 'BACK') {
-                item.x = (origin.x - (newWorldX + item.w * scale)) / scale;
+                newItemX = (origin.x - (newWorldX + item.w * scale)) / scale;
             } else {
-                item.x = (newWorldX - origin.x) / scale;
+                newItemX = (newWorldX - origin.x) / scale;
             }
-            item.y = (newWorldY - origin.y) / scale;
+            newItemY = (newWorldY - origin.y) / scale;
+
+            // Clone Shape and Item to Dispatch
+            const newShape = structuredClone(shape);
+            const faceData = newShape.faceData[activeFace];
+            // Find and update item in clone
+            const targetList = listType === 'tenon' ? faceData.tenons : faceData.cutouts;
+            // Identifying item by reference is hard after clone.
+            // Assumption: 'item' has the same index in the list as dragging.item
+            // Or simpler: We just update the 'item' reference we have? No, strict flux requires new objects.
+            // We need the INDEX of the item being dragged.
+            // Hack: 'dragging.item' is a reference to the OLD state object.
+            // We need to find its index.
+            const oldList = listType === 'tenon' ? shape.faceData[activeFace].tenons : shape.faceData[activeFace].cutouts;
+            const idx = oldList.indexOf(item);
+            
+            if (idx !== -1) {
+                targetList[idx].x = newItemX;
+                targetList[idx].y = newItemY;
+                
+                const newShapes = STATE.document.shapes.map(s => s.id === shape.id ? newShape : s);
+                Store.dispatch('JOINERY_DRAG_MOVE', { 
+                    document: { shapes: newShapes },
+                    ui: { 
+                        activeDrawing: { ...STATE.ui.activeDrawing, alignmentGuide },
+                        dragging: { ...dragging, item: targetList[idx] } // Update reference
+                    }
+                });
+            }
         }
 
         else if (dragging.type === 'THICKNESS') {
@@ -100,9 +140,18 @@ export const DraggingOp = {
             const step = 1/16; 
             const steps = Math.round(dx / 10);
             let newVal = dragging.initialVal + (steps * step);
-            dragging.item.thickness = Math.max(0.125, newVal);
-            DOM.propThickness.value = Geometry.formatInches(dragging.item.thickness);
-            Input.refreshView();
+            const newThickness = Math.max(0.125, newVal);
+            
+            const newShape = { ...dragging.item, thickness: newThickness };
+            const newShapes = STATE.document.shapes.map(s => s.id === newShape.id ? newShape : s);
+            
+            // Update input visually directly for smoothness? No, flux loop should handle it.
+            // But DOMRenderer.updatePropertiesPanel handles it.
+            
+            Store.dispatch('SHAPE_THICKNESS_DRAG', {
+                document: { shapes: newShapes },
+                ui: { dragging: { ...dragging, item: newShape } }
+            });
         }
     }
 };

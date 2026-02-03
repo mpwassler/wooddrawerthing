@@ -8,6 +8,7 @@ import * as THREE from 'https://esm.sh/three@0.160.0';
 import { DocumentOp } from './document-op.js';
 import { Geometry } from '../utils/geometry.js';
 import { Input } from '../systems/input.js';
+import { Store } from '../core/store.js';
 
 export const ThreedOp = {
     handleMouseDown: (e) => {
@@ -39,22 +40,24 @@ export const ThreedOp = {
                 renderer3D.transformControls.attach(obj);
                 
                 // Track this as our selected assembly part AND selected shape for properties
-                STATE.ui.selectedAssemblyId = obj.userData.shapeId;
-                STATE.ui.selectedShapeId = obj.userData.shapeId;
-                
-                // Update Properties Panel
-                const shape = STATE.document.shapes.find(s => s.id === obj.userData.shapeId);
-                if (shape) {
-                    Input.updatePropertiesPanel(shape);
-                }
+                // Dispatch Selection
+                Store.dispatch('SELECT_SHAPE_3D', {
+                    ui: { 
+                        selectedAssemblyId: obj.userData.shapeId,
+                        selectedShapeId: obj.userData.shapeId
+                    }
+                });
             }
         } else {
             // Clicked empty space
             if (!renderer3D.transformControls.dragging) {
                 renderer3D.transformControls.detach();
-                STATE.ui.selectedAssemblyId = null;
-                STATE.ui.selectedShapeId = null;
-                Input.updatePropertiesPanel(null); // Hide panel
+                Store.dispatch('DESELECT_3D', {
+                    ui: { 
+                        selectedAssemblyId: null,
+                        selectedShapeId: null
+                    }
+                });
             }
         }
     },
@@ -72,7 +75,12 @@ export const ThreedOp = {
                 break;
             case 'escape':
                 renderer3D.transformControls.detach();
-                STATE.ui.selectedAssemblyId = null;
+                Store.dispatch('DESELECT_3D', {
+                    ui: { 
+                        selectedAssemblyId: null,
+                        selectedShapeId: null
+                    }
+                });
                 break;
         }
     },
@@ -82,17 +90,18 @@ export const ThreedOp = {
      */
     persistTransforms: () => {
         const { renderer3D } = STATE;
-        if (!renderer3D) return;
+        if (!renderer3D || !STATE.ui.is3DOpen) return;
 
-        renderer3D.extrudedMeshes.forEach(group => {
-            const shapeId = group.userData.shapeId;
-            const shape = STATE.document.shapes.find(s => s.id === shapeId);
+        let hasChanges = false;
+        // Map current shapes to new list with updated transforms
+        const newShapes = STATE.document.shapes.map(shape => {
+            // Find corresponding mesh group
+            const group = renderer3D.extrudedMeshes.find(g => g.userData.shapeId === shape.id);
             
-            if (shape) {
+            if (group) {
                 const centroid = Geometry.calculateCentroid(shape.points);
                 
-                // Save RELATIVE position (World Pos - Original 2D Center)
-                shape.transform3D = {
+                const newTransform = {
                     position: {
                         x: group.position.x - centroid.x,
                         y: group.position.y - centroid.y,
@@ -104,9 +113,23 @@ export const ThreedOp = {
                         z: group.rotation.z
                     }
                 };
+
+                // Check for diff (simple equality check)
+                // Actually, just updating is fine, Store merge handles it.
+                // But to avoid infinite loops if this triggered a re-render which triggered a persist...
+                // Wait, 'persistTransforms' is called on 'change' event from gizmo.
+                
+                // We create a new shape object
+                hasChanges = true;
+                return { ...shape, transform3D: newTransform };
             }
+            return shape;
         });
         
-        DocumentOp.updateJSONExport();
+        if (hasChanges) {
+            Store.dispatch('SHAPE_TRANSFORM_3D', {
+                document: { shapes: newShapes }
+            });
+        }
     }
 };
