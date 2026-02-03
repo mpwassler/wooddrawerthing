@@ -17,6 +17,7 @@ import { DocumentOp } from '../operations/document-op.js';
 import { ProjectOp } from '../operations/project-op.js';
 import { ShapeModel } from '../core/model.js';
 import { DOMRenderer } from './dom-renderer.js';
+import { ThreedOp } from '../operations/threed-op.js';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -113,8 +114,12 @@ export const Input = {
     
     // ... (keep MouseMove, MouseUp, Wheel, Keys as is) ...
     handleMouseMove: (e) => {
-        // If 3D mode is open, only allow UI dragging (like Thickness), block canvas interactions
-        if (STATE.ui.is3DOpen && !STATE.ui.dragging.type) return;
+        // Handle 3D Tooling (Raycasting etc)
+        if (STATE.ui.is3DOpen) {
+            ThreedOp.handleMouseMove(e);
+            // If not dragging a UI element, block 2D canvas interactions
+            if (!STATE.ui.dragging.type) return;
+        }
 
         const mouseScreen = { x: e.clientX, y: e.clientY };
         const mouseWorld = Geometry.screenToWorld(mouseScreen, STATE.ui.view);

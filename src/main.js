@@ -84,6 +84,18 @@ async function init() {
         if (STATE.renderer3D) STATE.renderer3D.render3DScene(STATE.document.shapes, true);
     });
     
+    DOM.btnToolSlice.addEventListener('click', () => {
+        const isActive = DOM.btnToolSlice.classList.toggle('active');
+        Store.dispatch('TOOL_3D_SELECT', {
+            ui: { activeTool3D: isActive ? 'SLICE' : 'SELECT' }
+        });
+        // Clear selection if switching tools
+        if (isActive && STATE.ui.selectedAssemblyId) {
+            Store.dispatch('DESELECT_3D', { ui: { selectedAssemblyId: null, selectedShapeId: null } });
+            if (STATE.renderer3D && STATE.renderer3D.transformControls) STATE.renderer3D.transformControls.detach();
+        }
+    });
+    
     // Properties
     DOM.input.addEventListener('keydown', (e) => { if(e.key === 'Enter') Input.handleInputApply(); });
     

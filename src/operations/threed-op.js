@@ -9,11 +9,38 @@ import { DocumentOp } from './document-op.js';
 import { Geometry } from '../utils/geometry.js';
 import { Input } from '../systems/input.js';
 import { Store } from '../core/store.js';
+import { SliceOp } from './slice-op.js';
 
 export const ThreedOp = {
+    handleMouseMove: (e) => {
+        console.log('ThreedOp MouseMove', STATE.ui.is3DOpen, STATE.ui.activeTool3D);
+        if (!STATE.ui.is3DOpen || STATE.ui.activeTool3D !== 'SLICE') {
+            SliceOp.clearPreview(); // Ensure cleanup if we switched tools
+            return;
+        }
+
+        const { renderer3D } = STATE;
+        const rect = renderer3D.canvas.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
+        );
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, renderer3D.cameraPersp);
+        const intersects = raycaster.intersectObjects(renderer3D.extrudedMeshes, true);
+        
+        SliceOp.handleMouseMove(e, raycaster, intersects);
+    },
+
     handleMouseDown: (e) => {
         const { renderer3D } = STATE;
         if (!renderer3D || renderer3D.mode !== '3D') return;
+
+        if (STATE.ui.activeTool3D === 'SLICE') {
+            SliceOp.handleClick();
+            return;
+        }
 
         // 1. Setup Raycaster
         const rect = renderer3D.canvas.getBoundingClientRect();

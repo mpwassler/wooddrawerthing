@@ -19,6 +19,7 @@ export const DOM = {
     controls2D: document.getElementById('2d-controls'),
     controls3D: document.getElementById('3d-controls'),
     btnResetCam: document.getElementById('reset-cam-btn'),
+    btnToolSlice: document.getElementById('tool-slice-btn'),
     
     // Properties Panel
     propPanel: document.getElementById('properties-panel'),

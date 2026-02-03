@@ -23,6 +23,7 @@ export const STATE = {
     // --- UI & View State (Transient) ---
     ui: {
         mode: 'DRAW',   // 'DRAW' | 'SELECT'
+        activeTool3D: 'SELECT', // 'SELECT' | 'SLICE'
         drawState: 'IDLE', // 'IDLE' | 'START_SHAPE' | 'DRAWING_LINE'
         is3DOpen: false,
         

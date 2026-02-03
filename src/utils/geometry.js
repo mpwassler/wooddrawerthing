@@ -145,12 +145,73 @@ export const Geometry = {
     },
 
     /**
-     * Calculates the geometric center (Centroid) of a polygon.
-     * THEORY: Average of Coordinates.
-     * For a set of points, the center is simply the average of all X values
-     * and the average of all Y values.
+     * Splits a polygon into two parts using a line segment.
+     * Assumes the segment crosses the entire polygon.
+     */
+    splitPolygon: (pts, cutStart, cutEnd) => {
+        // 1. Find indices of segments that contain the cut points
+        const findSegment = (p) => {
+            for (let i = 0; i < pts.length; i++) {
+                const p1 = pts[i], p2 = pts[(i + 1) % pts.length];
+                const d = Geometry.dist(p, Geometry.closestPointOnSegment(p, p1, p2));
+                if (d < 0.01) return i;
+            }
+            return -1;
+        };
+
+        const idx1 = findSegment(cutStart);
+        const idx2 = findSegment(cutEnd);
+
+        if (idx1 === -1 || idx2 === -1 || idx1 === idx2) return null;
+
+        // 2. Create two new loops
+        // Loop A: Start at CutStart -> segments to CutEnd -> CutEnd -> back to CutStart
+        // Loop B: Start at CutEnd -> segments to CutStart -> CutStart -> back to CutEnd
+
+        const part1 = [cutStart];
+        let curr = (idx1 + 1) % pts.length;
+        while (curr !== (idx2 + 1) % pts.length) {
+            part1.push(pts[curr]);
+            curr = (curr + 1) % pts.length;
+        }
+        part1.push(cutEnd);
+
+        const part2 = [cutEnd];
+        curr = (idx2 + 1) % pts.length;
+        while (curr !== (idx1 + 1) % pts.length) {
+            part2.push(pts[curr]);
+            curr = (curr + 1) % pts.length;
+        }
+        part2.push(cutStart);
+
+        return [part1, part2];
+    },
+
+    /**
+     * Calculates the intersection point of two line segments.
+     * Returns {x, y} or null if no intersection.
+     */
+    lineIntersection: (p1, p2, p3, p4) => {
+        const det = (p2.x - p1.x) * (p4.y - p3.y) - (p4.x - p3.x) * (p2.y - p1.y);
+        if (det === 0) return null; // Parallel
+
+        const lambda = ((p4.y - p3.y) * (p4.x - p1.x) + (p3.x - p4.x) * (p4.y - p1.y)) / det;
+        const gamma = ((p1.y - p2.y) * (p4.x - p1.x) + (p2.x - p1.x) * (p4.y - p1.y)) / det;
+
+        if ((0 <= lambda && lambda <= 1) && (0 <= gamma && gamma <= 1)) {
+            return {
+                x: p1.x + lambda * (p2.x - p1.x),
+                y: p1.y + lambda * (p2.y - p1.y)
+            };
+        }
+        return null;
+    },
+
+    /**
+     * Calculates the geometric center of a set of points.
      */
     calculateCentroid: (points) => {
+
         if (!points || points.length === 0) return { x: 0, y: 0 };
         let cx = 0, cy = 0;
         points.forEach(p => { cx += p.x; cy += p.y; });
