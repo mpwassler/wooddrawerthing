@@ -15,6 +15,7 @@ import { DraggingOp } from '../operations/dragging-op.js';
 import { JoineryOp } from '../operations/joinery-op.js';
 import { DocumentOp } from '../operations/document-op.js';
 import { ProjectOp } from '../operations/project-op.js';
+import { ShapeModel } from '../core/model.js';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -299,9 +300,8 @@ export const Input = {
         const { active, target } = STATE.ui.boolCandidate;
         const newPoints = BooleanOps.union(target, active);
         if (newPoints) {
-            const newShape = { ...structuredClone(active), id: generateId(), points: newPoints };
+            const newShape = ShapeModel.fromParent(active, newPoints);
             newShape.selected = true;
-            Geometry.recalculateSideLengths(newShape.points, CONFIG.SCALE_PIXELS_PER_INCH);
             STATE.document.shapes = STATE.document.shapes.filter(s => s !== active && s !== target);
             STATE.document.shapes.push(newShape);
             STATE.ui.selectedShapeId = newShape.id;
@@ -317,9 +317,8 @@ export const Input = {
         const { active, target } = STATE.ui.boolCandidate;
         const newPoints = BooleanOps.subtract(target, active);
         if (newPoints) {
-             const newShape = { ...structuredClone(target), id: generateId(), points: newPoints };
+             const newShape = ShapeModel.fromParent(target, newPoints);
              newShape.selected = true;
-             Geometry.recalculateSideLengths(newShape.points, CONFIG.SCALE_PIXELS_PER_INCH);
              STATE.document.shapes = STATE.document.shapes.filter(s => s !== active && s !== target);
              STATE.document.shapes.push(newShape);
              STATE.ui.selectedShapeId = newShape.id;

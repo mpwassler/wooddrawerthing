@@ -10,6 +10,10 @@ import { CONFIG } from '../core/config.js';
 import { Geometry } from '../utils/geometry.js';
 
 export class WebGLRenderer {
+    /**
+     * Initializes the Three.js renderer, cameras, and controls.
+     * @param {HTMLElement} canvasElement - The canvas DOM element.
+     */
     constructor(canvasElement) {
         this.canvas = canvasElement;
         this.width = canvasElement.clientWidth;
@@ -74,6 +78,10 @@ export class WebGLRenderer {
         this.extrudedMeshes = []; // Keep track of 3D objects
     }
 
+    /**
+     * Switches between 2D (Orthographic) and 3D (Perspective) modes.
+     * @param {string} mode - '2D' or '3D'.
+     */
     setMode(mode) {
         this.mode = mode;
         if (mode === '3D') {
@@ -97,6 +105,11 @@ export class WebGLRenderer {
         }
     }
 
+    /**
+     * Resizes the renderer and updates camera projections.
+     * @param {number} width - New width in pixels.
+     * @param {number} height - New height in pixels.
+     */
     resize(width, height) {
         this.width = width;
         this.height = height;
@@ -114,12 +127,13 @@ export class WebGLRenderer {
         this.cameraPersp.updateProjectionMatrix();
     }
     
+    /** Clears all immediate-mode 2D objects from the scene */
     clear() {
-        // Clear 2D immediate objects
         this.activeObjects.forEach(obj => this.scene.remove(obj));
         this.activeObjects = [];
     }
 
+    /** Clears all generated 3D meshes */
     clear3D() {
         this.extrudedMeshes.forEach(mesh => {
             this.scene.remove(mesh);
@@ -244,6 +258,11 @@ export class WebGLRenderer {
 
     // --- 3D LOGIC ---
 
+    /**
+     * Generates and adds extruded meshes for all shapes to the scene.
+     * Handles front face, edge details, and joinery.
+     * @param {Array} shapes - List of shape data objects.
+     */
     render3DScene(shapes) {
         if (this.extrudedMeshes.length > 0) return; 
         const self = this;

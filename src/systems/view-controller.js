@@ -16,14 +16,22 @@ export const ViewController = {
         r.clear();
         o.clear();
 
+        // TEACHING MOMENT: Matrix Stacks
+        // We use 'pushWorldTransform' to enter "World Space".
+        // Inside this block, we can draw using inches (e.g., x: 10, y: 5) and the renderer
+        // automatically handles the Pan (Translation) and Zoom (Scale) math for us.
         r.pushWorldTransform(STATE.ui.view.pan.x, STATE.ui.view.pan.y, STATE.ui.view.zoom);
         ViewController._drawWorldLayer(r);
-        r.popTransform();
+        r.popTransform(); // We pop to return to "Screen Space" (pixels)
 
+        // Same concept for the overlay layer
         o.pushWorldTransform(STATE.ui.view.pan.x, STATE.ui.view.pan.y, STATE.ui.view.zoom);
         ViewController._drawOverlayLayer(o);
         o.popTransform();
 
+        // TEACHING MOMENT: The Painter's Algorithm
+        // We draw the Screen Layer LAST. This ensures it is drawn "on top" of everything else.
+        // If we drew it first, the grid or shapes might cover up our UI tools.
         ViewController._drawScreenLayer(o);
     },
 

@@ -9,6 +9,10 @@ import { CONFIG } from '../core/config.js';
 import { Input } from '../systems/input.js';
 
 export const JoineryOp = {
+    /**
+     * Adds a new Tenon to the currently selected shape and face.
+     * Uses geometry logic to mirror position if on FRONT face.
+     */
     addTenon: () => {
         const shape = STATE.selectedShape;
         if (!shape) return;
@@ -51,18 +55,31 @@ export const JoineryOp = {
         }
     },
 
+    /**
+     * Adds a new Cutout to the currently selected shape and face.
+     */
     addCutout: () => {
         const shape = STATE.selectedShape;
         const { cutouts } = Input.activeFaceData();
         if (cutouts) cutouts.push({ x: 2, y: 0, w: 2, h: 1, depth: shape ? shape.thickness : CONFIG.DEFAULT_THICKNESS });
     },
 
+    /**
+     * Removes a joinery item (tenon or cutout) from the list.
+     * @param {string} type - 'cutout' or 'tenon'
+     * @param {number} index - Index in the array
+     */
     removeJoinery: (type, index) => {
         const data = Input.activeFaceData();
         const list = type === 'cutout' ? data.cutouts : data.tenons;
         if (list) list.splice(index, 1);
     },
 
+    /**
+     * Calculates the mirrored position for a new tenon based on the last added one.
+     * Used for symmetric placement on the Front face.
+     * @returns {Object} Target point {x, y}
+     */
     calculateMirrorPosition: (shape, tenons) => {
         const last = tenons[tenons.length - 1];
         const scale = CONFIG.SCALE_PIXELS_PER_INCH;

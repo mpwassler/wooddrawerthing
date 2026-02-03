@@ -9,6 +9,11 @@ import { CONFIG } from '../core/config.js';
 import { DOM } from '../core/dom.js';
 
 export const DraggingOp = {
+    /**
+     * Updates the position of the dragged item (shape, joinery, or thickness slider).
+     * @param {Object} mouseWorld - Mouse position in world coordinates.
+     * @param {Object} mouseScreen - Mouse position in screen coordinates.
+     */
     update: (mouseWorld, mouseScreen) => {
         const { ui } = STATE;
         const { dragging } = ui;

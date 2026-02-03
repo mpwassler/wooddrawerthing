@@ -6,8 +6,17 @@
 import { STATE } from '../core/state.js';
 import { Geometry } from '../utils/geometry.js';
 import { CONFIG } from '../core/config.js';
+import { ShapeModel } from '../core/model.js';
 
 export const DrawingOp = {
+    /**
+     * Handles clicks on the canvas during drawing mode.
+     * Manages state transitions: IDLE -> START_SHAPE -> DRAWING_LINE.
+     * Finalizes the shape when closing the loop.
+     * @param {Object} mouseWorld - Mouse position in world coordinates.
+     * @param {Object} mouseScreen - Mouse position in screen coordinates.
+     * @returns {Object|null} The new shape object if created, otherwise null.
+     */
     handleDrawClick: (mouseWorld, mouseScreen) => {
         const { ui } = STATE;
         const { activeDrawing } = ui;
@@ -32,31 +41,10 @@ export const DrawingOp = {
             activePt.lengthToNext = dist / CONFIG.SCALE_PIXELS_PER_INCH;
 
             if (activeDrawing.snapTarget) {
-                // Finalize Shape
-                const newId = Math.random().toString(36).substr(2, 9);
-                const newShape = {
-                    id: newId,
-                    name: `Part ${STATE.document.shapes.length + 1}`,
-                    points: [...activeDrawing.points],
-                    closed: true,
-                    thickness: CONFIG.DEFAULT_THICKNESS,
-                    activeFace: 'FRONT',
-                    faceData: {
-                        'FRONT': { tenons: [], cutouts: [] },
-                        'BACK': { tenons: [], cutouts: [] }
-                    },
-                    transform3D: {
-                        position: { x: 0, y: 0, z: 0 },
-                        rotation: { x: 0, y: 0, z: 0 }
-                    }
-                };
+                // Finalize Shape using Model Factory
+                const name = `Part ${STATE.document.shapes.length + 1}`;
+                const newShape = ShapeModel.create(activeDrawing.points, name);
                 
-                // Initialize Edge data
-                newShape.points.forEach((p, i) => {
-                    newShape.faceData[`EDGE_${i}`] = { tenons: [], cutouts: [] };
-                });
-                
-                Geometry.recalculateSideLengths(newShape.points, CONFIG.SCALE_PIXELS_PER_INCH);
                 STATE.document.shapes.push(newShape);
                 
                 // Cleanup drawing state
@@ -81,6 +69,11 @@ export const DrawingOp = {
         return null;
     },
 
+    /**
+     * Updates the drawing preview (guides, snap lines, compass) on mouse move.
+     * @param {Object} mouseWorld - Mouse position in world coordinates.
+     * @param {Object} mouseScreen - Mouse position in screen coordinates.
+     */
     updatePreview: (mouseWorld, mouseScreen) => {
         const { ui } = STATE;
         const { activeDrawing, view } = ui;
@@ -131,7 +124,15 @@ export const DrawingOp = {
 
         } else if (ui.drawState === 'DRAWING_LINE') {
             const dir = Geometry.normalize(activeDrawing.selectedDirection);
+            
+            // TEACHING MOMENT: Vector Projection
+            // We want to lock the mouse movement to a specific line (the 'dir' vector).
+            // To do this, we take the vector from the start point to the mouse...
             const vecToMouse = { x: mouseWorld.x - activePt.x, y: mouseWorld.y - activePt.y };
+            
+            // ...and calculate the Dot Product.
+            // Think of this as casting a "Shadow" of the mouse vector onto our direction line.
+            // 'len' becomes the distance along that line where the shadow falls.
             let len = Math.max(0, Geometry.dot(vecToMouse, dir));
             
             // --- Adaptive Multi-Tiered Snapping ---
@@ -200,6 +201,9 @@ export const DrawingOp = {
         }
     },
 
+    /**
+     * Cancels the current drawing operation and resets state.
+     */
     cancel: () => {
         const { ui } = STATE;
         ui.drawState = 'IDLE';

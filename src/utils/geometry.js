@@ -1,36 +1,74 @@
 /**
  * @fileoverview Geometry & Math Utilities
- * Pure functions for vector math and unit conversion.
+ * 
+ * TEACHING MOMENT:
+ * This file contains "Pure Functions". They don't touch the DOM or the State.
+ * They just take numbers in and spit numbers out. This makes them easy to test
+ * and safe to use anywhere.
  */
 
 import { CONFIG } from '../core/config.js';
 
 export const Geometry = {
-    /** Calculates Euclidean distance between two points */
+    /** 
+     * Calculates the distance between two points.
+     * THEORY: The Pythagorean Theorem (a² + b² = c²).
+     * We calculate the difference in X and Y (a and b), square them, add them,
+     * and take the square root to find the diagonal distance (c).
+     */
     dist: (p1, p2) => Math.hypot(p2.x - p1.x, p2.y - p1.y),
 
-    /** Transforms screen coordinates to world coordinates */
+    /** 
+     * Transforms "Screen Coordinates" (pixels on your monitor) into "World Coordinates" (inches in the design).
+     * THEORY: Coordinate Transformation.
+     * 1. Translate: Subtract the pan offset to align the origins.
+     * 2. Scale: Divide by the zoom factor to reverse the magnification.
+     */
     screenToWorld: (pos, view) => ({
         x: (pos.x - view.pan.x) / view.zoom,
         y: (pos.y - view.pan.y) / view.zoom,
     }),
 
-    /** Transforms world coordinates to screen coordinates */
+    /** 
+     * Transforms "World Coordinates" back into "Screen Coordinates".
+     * This is the inverse of screenToWorld. We Scale first, then Translate.
+     */
     worldToScreen: (pos, view) => ({
         x: pos.x * view.zoom + view.pan.x,
         y: pos.y * view.zoom + view.pan.y,
     }),
 
-    /** Normalizes a vector {x, y} */
+    /** 
+     * Normalizes a vector.
+     * THEORY: Unit Vectors.
+     * A "Vector" has both Direction and Magnitude (Length).
+     * Sometimes we only care about Direction (e.g., "Going North").
+     * Normalizing divides a vector by its own length, resulting in a length of 1.
+     * This is crucial for direction calculations like Dot Products.
+     */
     normalize: (vec) => {
-        const mag = Math.hypot(vec.x, vec.y) || 1;
+        const mag = Math.hypot(vec.x, vec.y) || 1; // Avoid division by zero
         return { x: vec.x / mag, y: vec.y / mag };
     },
 
-    /** Dot product */
+    /** 
+     * Calculates the Dot Product of two vectors.
+     * THEORY: Projection / "The Shadow".
+     * The Dot Product tells us how much two vectors point in the same direction.
+     * - If A and B are normalized:
+     *   - Result 1.0: They point in the exact same direction.
+     *   - Result 0.0: They are perpendicular (90 degrees).
+     *   - Result -1.0: They point in opposite directions.
+     * 
+     * PRACTICAL USE: We use this to project the mouse cursor onto a guide line
+     * to see how far along that line we have moved.
+     */
     dot: (v1, v2) => v1.x * v2.x + v1.y * v2.y,
 
-    /** GCD for fractions */
+    /** 
+     * Greatest Common Divisor (GCD).
+     * Used for simplifying fractions (e.g., converting 4/8 to 1/2).
+     */
     gcd: (a, b) => b === 0 ? a : Geometry.gcd(b, a % b),
 
     /** Formats decimal inches to feet/inch fraction string */
@@ -52,7 +90,7 @@ export const Geometry = {
         return `${intInches}${fracStr}"`.trim();
     },
 
-    /** Parses measurement string to decimal inches */
+    /** Parses measurement string (e.g., "1' 2 1/2") to decimal inches */
     parseMeasurement: (str) => {
         str = str.trim();
         const feetInches = /(\d+)'(?:\s*(\d+)?(?:\s*(\d+)\/(\d+))?)?"?/;
@@ -78,16 +116,26 @@ export const Geometry = {
     },
 
     /**
-     * Returns the closest point on a line segment (p1-p2) to point p.
+     * Finds the closest point on a line segment to an arbitrary point.
+     * THEORY: Parametric Line Equations.
+     * A line segment is defined as: Point = Start + t * (End - Start)
+     * where 't' goes from 0 (Start) to 1 (End).
+     * 
+     * We calculate 't' by projecting our point onto the line vector (using Dot Product!).
+     * Then we CLAMP 't' between 0 and 1.
+     * - If t < 0: The closest point is the Start.
+     * - If t > 1: The closest point is the End.
+     * - Otherwise: It's somewhere in the middle.
      */
     closestPointOnSegment: (p, p1, p2) => {
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
-        if (dx === 0 && dy === 0) return p1;
+        if (dx === 0 && dy === 0) return p1; // Segment is actually a dot
 
+        // Calculate 't' (the projection ratio)
         const t = ((p.x - p1.x) * dx + (p.y - p1.y) * dy) / (dx * dx + dy * dy);
         
-        // Clamp t to segment
+        // Clamp 't' to the segment bounds [0, 1]
         const tClamped = Math.max(0, Math.min(1, t));
         
         return {
@@ -97,7 +145,10 @@ export const Geometry = {
     },
 
     /**
-     * Calculates the geometric center of a set of points.
+     * Calculates the geometric center (Centroid) of a polygon.
+     * THEORY: Average of Coordinates.
+     * For a set of points, the center is simply the average of all X values
+     * and the average of all Y values.
      */
     calculateCentroid: (points) => {
         if (!points || points.length === 0) return { x: 0, y: 0 };
@@ -107,7 +158,13 @@ export const Geometry = {
     },
 
     /**
-     * Returns the visual origin and X-multiplier for a specific face view.
+     * Helper to handle the "Multi-Side" coordinate logic.
+     * THEORY: Local Coordinate Systems.
+     * - FRONT: Standard World Coordinates.
+     * - BACK: Mirrored horizontally around the shape's center (x' = 2*cx - x).
+     * - EDGE: A totally new 2D plane where X = Edge Length and Y = Thickness.
+     * 
+     * This function abstracts that complexity so the renderer doesn't have to know math.
      */
     getFaceOrigin: (shape, faceName, scale) => {
         const centroid = Geometry.calculateCentroid(shape.points);
@@ -127,7 +184,8 @@ export const Geometry = {
         if (faceName.startsWith('EDGE_')) {
             const idx = parseInt(faceName.split('_')[1]);
             const len = shape.points[idx].lengthToNext || 0;
-            const thick = shape.thickness || 1.0; // Use default from config if possible
+            const thick = shape.thickness || 1.0; 
+            // Center the edge rectangle on the shape's centroid for display
             return {
                 origin: { x: centroid.x - (len * scale) / 2, y: centroid.y - (thick * scale) / 2 },
                 xMult: 1
@@ -138,7 +196,8 @@ export const Geometry = {
     },
 
     /**
-     * Recalculates lengthToNext for all points in a closed shape.
+     * Pre-calculates the length of each side of a polygon.
+     * Useful for caching so we don't recalculate distance every frame.
      */
     recalculateSideLengths: (points, scale) => {
         if (!points || points.length < 2) return;
@@ -151,13 +210,22 @@ export const Geometry = {
     },
 
     /**
-     * Calculates the area of a polygon in Square Inches.
+     * Calculates the Area of a polygon.
+     * THEORY: The Shoelace Formula (Surveyor's Formula).
+     * We iterate through the points and calculate the "Cross Product" of each edge.
+     * Summing these up gives us 2x the Area.
+     * 
+     * Why does it work? 
+     * Imagine calculating the area of the trapezoid under every single edge down to the X-axis.
+     * Some edges go "forward" (adding area), some go "backward" (subtracting area).
+     * The result is the area exactly inside the polygon.
      */
     calculateArea: (points, scale) => {
         if (!points || points.length < 3) return 0;
         let area = 0;
         for (let i = 0; i < points.length; i++) {
             const j = (i + 1) % points.length;
+            // Cross product step: (x1 * y2) - (x2 * y1)
             area += points[i].x * points[j].y;
             area -= points[j].x * points[i].y;
         }
