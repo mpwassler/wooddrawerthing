@@ -59,12 +59,27 @@ export const ShapeModel = {
     fromParent: (parentShape, newPoints) => {
         const newShape = ShapeModel.create(newPoints, parentShape.name);
         newShape.thickness = parentShape.thickness;
-        // We specifically DO NOT copy faceData['EDGE_...'] because edge indices have changed.
-        // We COULD copy 'FRONT'/'BACK' data, but even that is risky if geometry changed drastically.
-        // For now, we'll copy Front/Back joinery but keep it safe.
         if (parentShape.faceData.FRONT) newShape.faceData.FRONT = structuredClone(parentShape.faceData.FRONT);
         if (parentShape.faceData.BACK) newShape.faceData.BACK = structuredClone(parentShape.faceData.BACK);
         
         return newShape;
+    }
+};
+
+export const TenonModel = {
+    /**
+     * Creates a new Tenon object.
+     */
+    create: (x = 0, y = 0, w = 2, h = 1, depth = CONFIG.DEFAULT_THICKNESS, inset = 0) => {
+        return { x, y, w, h, depth, inset };
+    }
+};
+
+export const CutoutModel = {
+    /**
+     * Creates a new Cutout object.
+     */
+    create: (x = 0, y = 0, w = 2, h = 1, depth = CONFIG.DEFAULT_THICKNESS) => {
+        return { x, y, w, h, depth };
     }
 };

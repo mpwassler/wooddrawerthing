@@ -7,6 +7,7 @@ import { STATE } from '../core/state.js';
 import { Geometry } from '../utils/geometry.js';
 import { CONFIG } from '../core/config.js';
 import { Input } from '../systems/input.js';
+import { TenonModel, CutoutModel } from '../core/model.js';
 
 export const JoineryOp = {
     /**
@@ -19,6 +20,7 @@ export const JoineryOp = {
         
         // Use active face data
         const { tenons } = Input.activeFaceData();
+        const thickness = shape.thickness || CONFIG.DEFAULT_THICKNESS;
         
         if (tenons.length > 0) {
             // Mirroring logic (Front face only for now, edges get basic stack)
@@ -38,20 +40,19 @@ export const JoineryOp = {
                     const scale = CONFIG.SCALE_PIXELS_PER_INCH;
                     const startPt = pts[0];
                     const last = tenons[tenons.length - 1];
-                    tenons.push({
-                        x: (bestPt.x - scale * last.w / 2 - startPt.x) / scale,
-                        y: (bestPt.y - scale * last.h / 2 - startPt.y) / scale,
-                        w: last.w, h: last.h, inset: last.inset || 0,
-                        depth: shape.thickness || CONFIG.DEFAULT_THICKNESS
-                    });
+                    tenons.push(TenonModel.create(
+                        (bestPt.x - scale * last.w / 2 - startPt.x) / scale,
+                        (bestPt.y - scale * last.h / 2 - startPt.y) / scale,
+                        last.w, last.h, thickness, last.inset || 0
+                    ));
                 }
             } else {
                 // For edges, just add a new one offset
                 const last = tenons[tenons.length - 1];
-                tenons.push({ x: last.x + 2, y: 0, w: 2, h: 1, inset: 0, depth: shape.thickness || CONFIG.DEFAULT_THICKNESS });
+                tenons.push(TenonModel.create(last.x + 2, 0, 2, 1, thickness, 0));
             }
         } else {
-            tenons.push({ x: 0, y: 0, w: 2, h: 1, inset: 0, depth: shape.thickness || CONFIG.DEFAULT_THICKNESS });
+            tenons.push(TenonModel.create(0, 0, 2, 1, thickness, 0));
         }
     },
 
@@ -61,7 +62,9 @@ export const JoineryOp = {
     addCutout: () => {
         const shape = STATE.selectedShape;
         const { cutouts } = Input.activeFaceData();
-        if (cutouts) cutouts.push({ x: 2, y: 0, w: 2, h: 1, depth: shape ? shape.thickness : CONFIG.DEFAULT_THICKNESS });
+        const thickness = shape ? (shape.thickness || CONFIG.DEFAULT_THICKNESS) : CONFIG.DEFAULT_THICKNESS;
+        
+        if (cutouts) cutouts.push(CutoutModel.create(2, 0, 2, 1, thickness));
     },
 
     /**
