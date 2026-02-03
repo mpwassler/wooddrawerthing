@@ -208,6 +208,43 @@ button:hover {
     background-color: #218838;
 }
 
+/* Joinery Items */
+.joinery-item {
+    padding: 6px;
+    border-radius: 4px;
+    margin-bottom: 5px;
+}
+
+.joinery-item.cutout {
+    background-color: #ffebee;
+}
+
+.joinery-item.tenon {
+    background-color: #e8f5e9;
+}
+
+.joinery-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.joinery-delete-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #666;
+    font-weight: bold;
+}
+
+.joinery-dims {
+    display: flex;
+    gap: 5px;
+    margin-top: 4px;
+    align-items: center;
+}
+
 /* Projects Side Panel (Floating) */
 .side-panel {
     position: absolute;
@@ -235,22 +272,42 @@ button:hover {
 }
 
 .project-item {
+    padding: 10px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    border-radius: 4px;
+    background: #fff;
+    border: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
     transition: all 0.2s;
 }
 
 .project-item:hover {
-    background-color: #f1f3f5 !important;
+    background-color: #f1f3f5;
 }
 
 .project-item.active {
-    background-color: #e7f5ff !important;
-    border-color: #74c0fc !important;
+    background-color: #e3f2fd;
+    border-color: #2196f3;
 }
 
 .project-item span {
     flex: 1;
     font-size: 0.9em;
     font-weight: 500;
+}
+
+.project-delete-btn {
+    background: none;
+    border: none;
+    color: #f44336;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 5px;
+    margin-left: 5px;
 }
 
 /* Modal Styles */

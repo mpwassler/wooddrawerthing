@@ -15,7 +15,7 @@ export const DocumentOp = {
             DOM.propJson.value = "";
             return;
         }
-        const exportData = JSON.parse(JSON.stringify(shape));
+        const exportData = structuredClone(shape);
         DOM.propJson.value = JSON.stringify(exportData, null, 2);
     },
 

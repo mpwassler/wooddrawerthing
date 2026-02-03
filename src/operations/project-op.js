@@ -89,22 +89,9 @@ export const ProjectOp = {
             const isActive = p.id === STATE.document.currentProjectId;
             const div = document.createElement('div');
             div.className = `project-item ${isActive ? 'active' : ''}`;
-            div.style.cssText = `
-                padding: 10px;
-                margin-bottom: 5px;
-                cursor: pointer;
-                border-radius: 4px;
-                background: ${isActive ? '#e3f2fd' : '#fff'};
-                border: 1px solid ${isActive ? '#2196f3' : '#ddd'};
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                user-select: none;
-            `;
             
             const nameSpan = document.createElement('span');
             nameSpan.innerText = p.name;
-            nameSpan.style.flex = "1";
             div.appendChild(nameSpan);
 
             // Single click to select (only if not already active or already editing)
@@ -148,15 +135,7 @@ export const ProjectOp = {
 
             const delBtn = document.createElement('button');
             delBtn.innerHTML = '&times;';
-            delBtn.style.cssText = `
-                background: none;
-                border: none;
-                color: #f44336;
-                font-weight: bold;
-                cursor: pointer;
-                padding: 0 5px;
-                margin-left: 5px;
-            `;
+            delBtn.className = 'project-delete-btn';
             delBtn.onclick = (e) => {
                 e.stopPropagation();
                 ProjectOp.deleteProject(p.id);

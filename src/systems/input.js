@@ -32,7 +32,7 @@ export const Input = {
             DOM.propJson.value = "";
             return;
         }
-        const exportData = JSON.parse(JSON.stringify(shape));
+        const exportData = structuredClone(shape);
         DOM.propJson.value = JSON.stringify(exportData, null, 2);
     },
 
@@ -244,28 +244,28 @@ export const Input = {
         
         const { tenons, cutouts } = Input.activeFaceData();
         
-        if (cutouts) cutouts.forEach((c, i) => Input.createJoineryItemDOM('Cutout', c, i, 'cutout', '#ffebee'));
-        if (tenons) tenons.forEach((t, i) => Input.createJoineryItemDOM('Tenon', t, i, 'tenon', '#e8f5e9'));
+        if (cutouts) cutouts.forEach((c, i) => Input.createJoineryItemDOM('Cutout', c, i, 'cutout'));
+        if (tenons) tenons.forEach((t, i) => Input.createJoineryItemDOM('Tenon', t, i, 'tenon'));
         
         DocumentOp.updateJSONExport();
     },
 
-    createJoineryItemDOM: (label, data, index, type, bg) => {
+    createJoineryItemDOM: (label, data, index, type) => {
         const div = document.createElement('div');
-        div.style.cssText = `background:${bg}; padding:6px; border-radius:4px; margin-bottom:5px;`;
+        div.className = `joinery-item ${type}`;
         
         const top = document.createElement('div');
-        top.style.cssText = `display:flex; justify-content:space-between; font-weight:bold; font-size:0.9em;`;
+        top.className = 'joinery-header';
         top.innerText = `${label} ${index + 1}`;
         const del = document.createElement('button');
         del.innerHTML = '&times;';
-        del.style.cssText = `background:none; border:none; cursor:pointer; color:#666; font-weight:bold;`;
+        del.className = 'joinery-delete-btn';
         del.onclick = () => { JoineryOp.removeJoinery(type, index); Input.renderJoineryList(); };
         top.appendChild(del);
         div.appendChild(top);
 
         const dims = document.createElement('div');
-        dims.style.cssText = `display:flex; gap:5px; margin-top:4px; align-items:center;`;
+        dims.className = 'joinery-dims';
         const addInp = (f, l) => {
             dims.appendChild(document.createTextNode(l));
             const i = document.createElement('input');
@@ -299,7 +299,7 @@ export const Input = {
         const { active, target } = STATE.ui.boolCandidate;
         const newPoints = BooleanOps.union(target, active);
         if (newPoints) {
-            const newShape = { ...JSON.parse(JSON.stringify(active)), id: generateId(), points: newPoints };
+            const newShape = { ...structuredClone(active), id: generateId(), points: newPoints };
             newShape.selected = true;
             Geometry.recalculateSideLengths(newShape.points, CONFIG.SCALE_PIXELS_PER_INCH);
             STATE.document.shapes = STATE.document.shapes.filter(s => s !== active && s !== target);
@@ -317,7 +317,7 @@ export const Input = {
         const { active, target } = STATE.ui.boolCandidate;
         const newPoints = BooleanOps.subtract(target, active);
         if (newPoints) {
-             const newShape = { ...JSON.parse(JSON.stringify(target)), id: generateId(), points: newPoints };
+             const newShape = { ...structuredClone(target), id: generateId(), points: newPoints };
              newShape.selected = true;
              Geometry.recalculateSideLengths(newShape.points, CONFIG.SCALE_PIXELS_PER_INCH);
              STATE.document.shapes = STATE.document.shapes.filter(s => s !== active && s !== target);
