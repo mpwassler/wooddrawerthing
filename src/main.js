@@ -17,10 +17,7 @@ async function init() {
     // 0. Initialize Store
     Store.init();
 
-    // 1. Initialize Storage & Projects
-    await ProjectOp.init();
-
-    // 2. Initialize Renderers
+    // 1. Initialize Renderers
     STATE.renderer = new WebGLRenderer(DOM.canvas);
     STATE.renderer.setMode('2D'); 
     
@@ -33,6 +30,9 @@ async function init() {
     });
     
     STATE.overlay = new CanvasRenderer(DOM.overlay);
+
+    // 2. Initialize Storage & Projects (Non-blocking)
+    ProjectOp.init().catch(err => console.error("Failed to load projects:", err));
     
     // 3. Initial Layout
     const w = DOM.canvas.parentElement.clientWidth;
@@ -57,7 +57,15 @@ async function init() {
         Input.handleKeyDown(e);
     });
     
-    window.addEventListener('mousemove', Input.handleMouseMove);
+    let throttleTimeout = null;
+    window.addEventListener('mousemove', (e) => {
+        if (throttleTimeout) return;
+        throttleTimeout = setTimeout(() => {
+            Input.handleMouseMove(e);
+            throttleTimeout = null;
+        }, 32); 
+    });
+    
     window.addEventListener('mouseup', Input.handleMouseUp);
     window.addEventListener('resize', () => {
         const ww = DOM.canvas.parentElement.clientWidth;
@@ -128,7 +136,15 @@ async function init() {
 let lastSaveTime = 0;
 const SAVE_INTERVAL = 2000; // Auto-save every 2 seconds if changed
 
+let lastLogTime = 0;
+
 function loop() {
+    const now = Date.now();
+    if (now - lastLogTime > 1000) {
+        // console.log("Loop Active. Shapes:", STATE.document.shapes.length);
+        lastLogTime = now;
+    }
+
     ViewController.render();
     
     if (STATE.renderer && STATE.renderer.render) {
@@ -140,7 +156,6 @@ function loop() {
     }
 
     // Auto-save logic
-    const now = Date.now();
     if (now - lastSaveTime > SAVE_INTERVAL) {
         ProjectOp.saveCurrentProject();
         lastSaveTime = now;

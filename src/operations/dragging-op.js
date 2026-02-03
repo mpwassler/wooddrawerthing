@@ -29,7 +29,7 @@ export const DraggingOp = {
             const newPoints = shape.points.map(p => ({ x: p.x + dx, y: p.y + dy, lengthToNext: p.lengthToNext }));
             
             // Dispatch Update
-            const newShape = { ...shape, points: newPoints };
+            const newShape = { ...shape, points: newPoints, lastModified: Date.now() };
             const newShapes = STATE.document.shapes.map(s => s.id === shape.id ? newShape : s);
             
             Store.dispatch('SHAPE_DRAG_MOVE', { 
@@ -108,16 +108,23 @@ export const DraggingOp = {
 
             // Clone Shape and Item to Dispatch
             const newShape = structuredClone(shape);
+            newShape.lastModified = Date.now(); // Update Timestamp
             const faceData = newShape.faceData[activeFace];
             // Find and update item in clone
             const targetList = listType === 'tenon' ? faceData.tenons : faceData.cutouts;
+            
             // Identifying item by reference is hard after clone.
-            // Assumption: 'item' has the same index in the list as dragging.item
-            // Or simpler: We just update the 'item' reference we have? No, strict flux requires new objects.
-            // We need the INDEX of the item being dragged.
-            // Hack: 'dragging.item' is a reference to the OLD state object.
-            // We need to find its index.
-            const oldList = listType === 'tenon' ? shape.faceData[activeFace].tenons : shape.faceData[activeFace].cutouts;
+            // But we know 'item' is the same object reference as in the original state 
+            // (dragging.item points to the live object in state when drag started).
+            // Wait, if we dispatched PREVIOUSLY, dragging.item is updated to the NEW object?
+            // Yes, "item: newShape" or "item: targetList[idx]".
+            // But if we are looking in the OLD list from shape.faceData, we might fail if references changed.
+            // Actually, we need to find the item in the NEW shape that corresponds to the OLD item.
+            // Since we clone, we rely on index?
+            // Or we just find the index in the OLD shape first.
+            
+            const oldFaceData = shape.faceData[activeFace];
+            const oldList = listType === 'tenon' ? oldFaceData.tenons : oldFaceData.cutouts;
             const idx = oldList.indexOf(item);
             
             if (idx !== -1) {
@@ -129,7 +136,7 @@ export const DraggingOp = {
                     document: { shapes: newShapes },
                     ui: { 
                         activeDrawing: { ...STATE.ui.activeDrawing, alignmentGuide },
-                        dragging: { ...dragging, item: targetList[idx] } // Update reference
+                        dragging: { ...dragging, item: targetList[idx] } // Update reference to new item so next drag works
                     }
                 });
             }
@@ -142,11 +149,8 @@ export const DraggingOp = {
             let newVal = dragging.initialVal + (steps * step);
             const newThickness = Math.max(0.125, newVal);
             
-            const newShape = { ...dragging.item, thickness: newThickness };
+            const newShape = { ...dragging.item, thickness: newThickness, lastModified: Date.now() };
             const newShapes = STATE.document.shapes.map(s => s.id === newShape.id ? newShape : s);
-            
-            // Update input visually directly for smoothness? No, flux loop should handle it.
-            // But DOMRenderer.updatePropertiesPanel handles it.
             
             Store.dispatch('SHAPE_THICKNESS_DRAG', {
                 document: { shapes: newShapes },

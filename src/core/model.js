@@ -25,6 +25,7 @@ export const ShapeModel = {
             closed: true,
             thickness: CONFIG.DEFAULT_THICKNESS,
             activeFace: 'FRONT',
+            lastModified: Date.now(),
             
             // Joinery Data Container
             faceData: {

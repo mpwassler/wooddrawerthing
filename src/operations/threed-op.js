@@ -13,7 +13,6 @@ import { SliceOp } from './slice-op.js';
 
 export const ThreedOp = {
     handleMouseMove: (e) => {
-        console.log('ThreedOp MouseMove', STATE.ui.is3DOpen, STATE.ui.activeTool3D);
         if (!STATE.ui.is3DOpen || STATE.ui.activeTool3D !== 'SLICE') {
             SliceOp.clearPreview(); // Ensure cleanup if we switched tools
             return;

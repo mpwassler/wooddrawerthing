@@ -11,10 +11,6 @@ import { CONFIG } from '../core/config.js';
 import { Geometry } from '../utils/geometry.js';
 
 export class WebGLRenderer {
-    /**
-     * Initializes the Three.js renderer, cameras, and controls.
-     * @param {HTMLElement} canvasElement - The canvas DOM element.
-     */
     constructor(canvasElement) {
         this.canvas = canvasElement;
         this.width = canvasElement.clientWidth;
@@ -77,12 +73,9 @@ export class WebGLRenderer {
         this.materials = new Map();
         this.activeObjects = [];
         this.extrudedMeshes = []; // Keep track of 3D objects
+        this.meshCache = new Map();
     }
 
-    /**
-     * Switches between 2D (Orthographic) and 3D (Perspective) modes.
-     * @param {string} mode - '2D' or '3D'.
-     */
     setMode(mode) {
         this.mode = mode;
         if (mode === '3D') {
@@ -106,11 +99,6 @@ export class WebGLRenderer {
         }
     }
 
-    /**
-     * Resizes the renderer and updates camera projections.
-     * @param {number} width - New width in pixels.
-     * @param {number} height - New height in pixels.
-     */
     resize(width, height) {
         this.width = width;
         this.height = height;
@@ -127,14 +115,17 @@ export class WebGLRenderer {
         this.cameraPersp.aspect = this.width / this.height;
         this.cameraPersp.updateProjectionMatrix();
     }
+
+    render() {
+        this.renderer.render(this.scene, this.activeCamera);
+    }
     
-    /** Clears all immediate-mode 2D objects from the scene */
     clear() {
+        // Clear 2D immediate objects
         this.activeObjects.forEach(obj => this.scene.remove(obj));
         this.activeObjects = [];
     }
 
-    /** Clears all generated 3D meshes */
     clear3D() {
         if (this.transformControls) {
             this.transformControls.detach();
@@ -144,6 +135,7 @@ export class WebGLRenderer {
             if (mesh.geometry) mesh.geometry.dispose();
         });
         this.extrudedMeshes = [];
+        this.meshCache.clear();
     }
 
     pushWorldTransform(tx, ty, s) {
@@ -262,186 +254,225 @@ export class WebGLRenderer {
 
     // --- 3D LOGIC ---
 
-    /**
-     * Generates and adds extruded meshes for all shapes to the scene.
-     * Handles front face, edge details, and joinery.
-     * @param {Array} shapes - List of shape data objects.
-     */
     render3DScene(shapes, resetCamera = false) {
-        if (this.extrudedMeshes.length > 0) return; 
         const self = this;
-        const evaluator = new Evaluator();
-
-        const grid = new THREE.GridHelper(10000, 1000, 0xcccccc, 0xe5e5e5);
-        grid.rotation.x = Math.PI / 2;
-        this.scene.add(grid);
-        this.extrudedMeshes.push(grid);
+        // Don't clear everything blindly. We want to persist valid meshes.
+        
+        // Ensure Grid
+        if (!this.gridHelper) {
+            this.gridHelper = new THREE.GridHelper(10000, 1000, 0xcccccc, 0xe5e5e5);
+            this.gridHelper.rotation.x = Math.PI / 2;
+            this.scene.add(this.gridHelper);
+        }
 
         const scale = 10;
         const bounds = new THREE.Box3();
         let hasShapes = false;
         
+        // Track active IDs to cleanup old ones later
+        const activeIds = new Set();
+
         shapes.forEach(shapeData => {
             if (!shapeData.closed || shapeData.points.length < 3) return;
+            activeIds.add(shapeData.id);
 
-            const group = new THREE.Group();
-            group.userData.shapeId = shapeData.id;
-
-            const shape = new THREE.Shape();
-            const centroid = Geometry.calculateCentroid(shapeData.points);
-            const cx = centroid.x, cy = centroid.y;
-
-            shape.moveTo(shapeData.points[0].x - cx, shapeData.points[0].y - cy);
-            for (let i = 1; i < shapeData.points.length; i++) {
-                shape.lineTo(shapeData.points[i].x - cx, shapeData.points[i].y - cy);
-            }
+            let group = this.meshCache.get(shapeData.id);
             
-            // Front Face Cutouts (Holes)
-            if (shapeData.faceData?.FRONT?.cutouts) {
-                const startPt = shapeData.points[0];
-                shapeData.faceData.FRONT.cutouts.forEach(c => {
-                    if (c.depth >= shapeData.thickness) {
-                        const hPath = new THREE.Path();
-                        const hx = (startPt.x + c.x * scale) - cx;
-                        const hy = (startPt.y + c.y * scale) - cy;
-                        const hw = c.w * scale, hh = c.h * scale;
-                        hPath.moveTo(hx, hy); hPath.lineTo(hx + hw, hy);
-                        hPath.lineTo(hx + hw, hy + hh); hPath.lineTo(hx, hy + hh);
-                        hPath.lineTo(hx, hy);
-                        shape.holes.push(hPath);
+            // Check if we need to Rebuild Geometry
+            // Rebuild if: New shape OR Timestamp changed
+            if (!group || group.userData.lastModified !== shapeData.lastModified) {
+                
+                let wasAttached = false;
+                // If replacing existing, dispose old geometry
+                if (group) {
+                    if (this.transformControls.object === group) {
+                        this.transformControls.detach();
+                        wasAttached = true;
+                    }
+                    this.scene.remove(group);
+                    group.traverse(o => { if(o.geometry) o.geometry.dispose(); });
+                }
+
+                // --- BUILD GEOMETRY ---
+                group = new THREE.Group();
+                group.userData.shapeId = shapeData.id;
+                group.userData.lastModified = shapeData.lastModified;
+
+                const shape = new THREE.Shape();
+                const centroid = Geometry.calculateCentroid(shapeData.points);
+                const cx = centroid.x, cy = centroid.y;
+
+                shape.moveTo(shapeData.points[0].x - cx, shapeData.points[0].y - cy);
+                for (let i = 1; i < shapeData.points.length; i++) {
+                    shape.lineTo(shapeData.points[i].x - cx, shapeData.points[i].y - cy);
+                }
+                
+                // Add Holes (Cutouts)
+                if (shapeData.faceData?.FRONT?.cutouts) {
+                    const startPt = shapeData.points[0];
+                    shapeData.faceData.FRONT.cutouts.forEach(c => {
+                        if (c.depth >= shapeData.thickness) {
+                            const hPath = new THREE.Path();
+                            const hx = (startPt.x + c.x * scale) - cx;
+                            const hy = (startPt.y + c.y * scale) - cy;
+                            const hw = c.w * scale, hh = c.h * scale;
+                            hPath.moveTo(hx, hy); hPath.lineTo(hx + hw, hy);
+                            hPath.lineTo(hx + hw, hy + hh); hPath.lineTo(hx, hy + hh);
+                            hPath.lineTo(hx, hy);
+                            shape.holes.push(hPath);
+                        }
+                    });
+                }
+
+                const thickness = (shapeData.thickness || CONFIG.DEFAULT_THICKNESS) * scale;
+                const geom = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: true, bevelThickness: 1, bevelSize: 1 });
+                const mat = this._getMeshMaterial('#e0c097');
+                
+                // Create Main Brush for CSG
+                let mainBrush = new Brush(geom, mat);
+                mainBrush.scale.y = -1;
+                mainBrush.updateMatrixWorld();
+
+                // Helper for Front Addons (Pockets/Tenons) - Visual Only
+                const renderAddon = (item, isCutout, faceKey) => {
+                    const itemShape = new THREE.Shape();
+                    const { origin } = Geometry.getFaceOrigin(shapeData, faceKey, scale);
+                    const ix = (origin.x + item.x * scale) - cx;
+                    const iy = (origin.y + item.y * scale) - cy;
+                    const iw = item.w * scale, ih = item.h * scale;
+                    itemShape.moveTo(ix, iy); itemShape.lineTo(ix + iw, iy);
+                    itemShape.lineTo(ix + iw, iy + ih); itemShape.lineTo(ix, iy + ih);
+                    itemShape.lineTo(ix, iy);
+
+                    const itemDepth = (item.depth || CONFIG.DEFAULT_THICKNESS) * scale;
+                    const itemGeom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: true, bevelSize: 1 });
+                    const itemMat = isCutout ? self._getMeshMaterial('#c0a077') : mat;
+                    const itemMesh = new THREE.Mesh(itemGeom, itemMat);
+                    itemMesh.scale.y = -1;
+                    
+                    if (isCutout) {
+                        itemMesh.position.z = 0.1; 
+                    } else {
+                        const inset = (item.inset || 0) * scale;
+                        itemMesh.position.z = inset;
+                    }
+                    group.add(itemMesh);
+                };
+
+                // Edge Processing (CSG)
+                let evaluator;
+                try {
+                    evaluator = new Evaluator();
+                } catch (e) {
+                    console.error("CSG Init Failed:", e);
+                }
+                
+                Object.keys(shapeData.faceData).forEach(faceKey => {
+                    const data = shapeData.faceData[faceKey];
+                    if (faceKey === 'FRONT') {
+                        data.cutouts.forEach(c => { if (c.depth < shapeData.thickness) renderAddon(c, true, faceKey); });
+                        data.tenons.forEach(t => renderAddon(t, false, faceKey));
+                    } 
+                    else if (faceKey.startsWith('EDGE_')) {
+                        const idx = parseInt(faceKey.split('_')[1]);
+                        const p1 = shapeData.points[idx], p2 = shapeData.points[(idx + 1) % shapeData.points.length];
+                        const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                        const startX = p1.x - cx;
+                        const startY = p1.y - cy;
+
+                        data.tenons.forEach(t => {
+                            const itemShape = new THREE.Shape();
+                            const ix = t.x * scale, iy = t.y * scale;
+                            const iw = t.w * scale, ih = t.h * scale;
+                            itemShape.moveTo(ix, iy); itemShape.lineTo(ix + iw, iy);
+                            itemShape.lineTo(ix + iw, iy + ih); itemShape.lineTo(ix, iy + ih);
+                            itemShape.lineTo(ix, iy);
+                            const itemDepth = (t.depth || CONFIG.DEFAULT_THICKNESS) * scale;
+                            const geom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: true, bevelSize: 1 });
+                            const mesh = new THREE.Mesh(geom, self._getMeshMaterial('#e0c097'));
+                            const pivot = new THREE.Group();
+                            pivot.position.set(startX, startY, 0); 
+                            pivot.rotation.z = angle;
+                            mesh.rotation.x = -Math.PI / 2;
+                            const inset = (t.inset || 0) * scale;
+                            mesh.position.y = inset; 
+                            pivot.add(mesh);
+                            group.add(pivot);
+                        });
+
+                        if (data.cutouts && data.cutouts.length > 0) {
+                            data.cutouts.forEach(c => {
+                                if (!evaluator) return; // Skip if CSG failed
+                                
+                                const itemShape = new THREE.Shape();
+                                const ix = c.x * scale, iy = c.y * scale;
+                                const iw = c.w * scale, ih = c.h * scale;
+                                itemShape.moveTo(ix, iy); itemShape.lineTo(ix + iw, iy);
+                                itemShape.lineTo(ix + iw, iy + ih); itemShape.lineTo(ix, iy + ih);
+                                itemShape.lineTo(ix, iy);
+                                
+                                const itemDepth = (c.depth || CONFIG.DEFAULT_THICKNESS) * scale;
+                                const geom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: false }); 
+                                const cutoutBrush = new Brush(geom, self._getMeshMaterial('#c0a077'));
+                                
+                                cutoutBrush.rotation.x = Math.PI / 2;
+                                cutoutBrush.position.y = 0.1;
+                                cutoutBrush.updateMatrix(); 
+                                
+                                const pivotMatrix = new THREE.Matrix4();
+                                pivotMatrix.makeRotationZ(angle);
+                                pivotMatrix.setPosition(startX, startY, 0);
+                                
+                                cutoutBrush.applyMatrix4(pivotMatrix);
+                                cutoutBrush.updateMatrixWorld();
+
+                                try {
+                                    mainBrush = evaluator.evaluate(mainBrush, cutoutBrush, SUBTRACTION);
+                                } catch (err) {
+                                    console.warn("CSG Subtract Failed", err);
+                                }
+                            });
+                        }
                     }
                 });
-            }
 
-            const thickness = (shapeData.thickness || CONFIG.DEFAULT_THICKNESS) * scale;
-            const geom = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: true, bevelThickness: 1, bevelSize: 1 });
-            const mat = this._getMeshMaterial('#e0c097');
-            
-            // Create Main Brush for CSG
-            let mainBrush = new Brush(geom, mat);
-            mainBrush.scale.y = -1;
-            mainBrush.updateMatrixWorld();
-
-            // Helper for Front Addons (Pockets/Tenons) - Visual Only
-            const renderAddon = (item, isCutout, faceKey) => {
-                const itemShape = new THREE.Shape();
-                const { origin } = Geometry.getFaceOrigin(shapeData, faceKey, scale);
-                const ix = (origin.x + item.x * scale) - cx;
-                const iy = (origin.y + item.y * scale) - cy;
-                const iw = item.w * scale, ih = item.h * scale;
-                itemShape.moveTo(ix, iy); itemShape.lineTo(ix + iw, iy);
-                itemShape.lineTo(ix + iw, iy + ih); itemShape.lineTo(ix, iy + ih);
-                itemShape.lineTo(ix, iy);
-
-                const itemDepth = (item.depth || CONFIG.DEFAULT_THICKNESS) * scale;
-                const itemGeom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: true, bevelSize: 1 });
-                const itemMat = isCutout ? self._getMeshMaterial('#c0a077') : mat;
-                const itemMesh = new THREE.Mesh(itemGeom, itemMat);
-                itemMesh.scale.y = -1;
+                mainBrush.castShadow = true;
+                mainBrush.receiveShadow = true;
+                group.add(mainBrush);
                 
-                if (isCutout) {
-                    itemMesh.position.z = 0.1; 
-                } else {
-                    const inset = (item.inset || 0) * scale;
-                    itemMesh.position.z = inset;
-                }
-                group.add(itemMesh);
-            };
-
-            // Edge Processing
-            Object.keys(shapeData.faceData).forEach(faceKey => {
-                const data = shapeData.faceData[faceKey];
+                this.scene.add(group);
+                this.meshCache.set(shapeData.id, group);
                 
-                if (faceKey === 'FRONT') {
-                    data.cutouts.forEach(c => { if (c.depth < shapeData.thickness) renderAddon(c, true, faceKey); });
-                    data.tenons.forEach(t => renderAddon(t, false, faceKey));
-                } 
-                else if (faceKey.startsWith('EDGE_')) {
-                    const idx = parseInt(faceKey.split('_')[1]);
-                    const p1 = shapeData.points[idx], p2 = shapeData.points[(idx + 1) % shapeData.points.length];
-                    const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-                    const startX = p1.x - cx;
-                    const startY = p1.y - cy;
-
-                    // Tenons (Additive - Visual Mesh)
-                    data.tenons.forEach(t => {
-                        const itemShape = new THREE.Shape();
-                        const ix = t.x * scale, iy = t.y * scale;
-                        const iw = t.w * scale, ih = t.h * scale;
-                        itemShape.moveTo(ix, iy); itemShape.lineTo(ix + iw, iy);
-                        itemShape.lineTo(ix + iw, iy + ih); itemShape.lineTo(ix, iy + ih);
-                        itemShape.lineTo(ix, iy);
-                        const itemDepth = (t.depth || CONFIG.DEFAULT_THICKNESS) * scale;
-                        const geom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: true, bevelSize: 1 });
-                        const mesh = new THREE.Mesh(geom, self._getMeshMaterial('#e0c097'));
-                        const pivot = new THREE.Group();
-                        pivot.position.set(startX, startY, 0); 
-                        pivot.rotation.z = angle;
-                        mesh.rotation.x = -Math.PI / 2;
-                        const inset = (t.inset || 0) * scale;
-                        mesh.position.y = inset; 
-                        pivot.add(mesh);
-                        group.add(pivot);
-                    });
-
-                    // Cutouts (Subtractive - CSG)
-                    data.cutouts.forEach(c => {
-                        const itemShape = new THREE.Shape();
-                        const ix = c.x * scale, iy = c.y * scale;
-                        const iw = c.w * scale, ih = c.h * scale;
-                        itemShape.moveTo(ix, iy); itemShape.lineTo(ix + iw, iy);
-                        itemShape.lineTo(ix + iw, iy + ih); itemShape.lineTo(ix, iy + ih);
-                        itemShape.lineTo(ix, iy);
-                        
-                        const itemDepth = (c.depth || CONFIG.DEFAULT_THICKNESS) * scale;
-                        // Extrude deep enough to cut clearly
-                        const geom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: false }); 
-                        
-                        // Setup Cutout Brush
-                        const cutoutBrush = new Brush(geom, self._getMeshMaterial('#c0a077'));
-                        
-                        // Apply Transforms manually to the Brush (since we can't nest brushes in groups for calculation)
-                        // Transformation Chain:
-                        // 1. Rotate X +90 (Extrude In)
-                        // 2. Translate Y 0.1 (Surface)
-                        // 3. Rotate Z (Angle)
-                        // 4. Translate (startX, startY, 0)
-                        
-                        cutoutBrush.rotation.x = Math.PI / 2;
-                        cutoutBrush.position.y = 0.1;
-                        cutoutBrush.updateMatrix(); // Update local
-                        
-                        // Apply Edge Alignment (Rotate Z + Translate)
-                        // We do this by multiplying matrices
-                        const pivotMatrix = new THREE.Matrix4();
-                        pivotMatrix.makeRotationZ(angle);
-                        pivotMatrix.setPosition(startX, startY, 0);
-                        
-                        cutoutBrush.applyMatrix4(pivotMatrix);
-                        cutoutBrush.updateMatrixWorld();
-
-                        // CSG Subtract
-                        mainBrush = evaluator.evaluate(mainBrush, cutoutBrush, SUBTRACTION);
-                    });
+                if (wasAttached) {
+                    this.transformControls.attach(group);
                 }
-            });
+            } // End Rebuild
 
-            // Finalize Main Mesh
-            mainBrush.castShadow = true;
-            mainBrush.receiveShadow = true;
-            group.add(mainBrush);
-
+            // Update Transform (Always)
+            const centroid = Geometry.calculateCentroid(shapeData.points);
+            const cx = centroid.x, cy = centroid.y;
             const t3d = shapeData.transform3D || { position: {x:0, y:0, z:0}, rotation: {x:0, y:0, z:0} };
+            
             group.position.set(cx + t3d.position.x, cy + t3d.position.y, t3d.position.z);
             group.rotation.set(t3d.rotation._x || t3d.rotation.x || 0, t3d.rotation._y || t3d.rotation.y || 0, t3d.rotation._z || t3d.rotation.z || 0);
 
-            this.scene.add(group);
-            this.extrudedMeshes.push(group);
-            
             const groupBounds = new THREE.Box3().setFromObject(group);
             bounds.union(groupBounds);
             hasShapes = true;
         });
+
+        // Cleanup Removed Shapes
+        for (const [id, group] of this.meshCache) {
+            if (!activeIds.has(id)) {
+                if (this.transformControls.object === group) this.transformControls.detach();
+                this.scene.remove(group);
+                group.traverse(o => { if(o.geometry) o.geometry.dispose(); });
+                this.meshCache.delete(id);
+            }
+        }
+        
+        // Update extrudedMeshes for Raycasting
+        this.extrudedMeshes = Array.from(this.meshCache.values());
 
         if (hasShapes && resetCamera) {
             const center = new THREE.Vector3(); bounds.getCenter(center);
@@ -451,12 +482,5 @@ export class WebGLRenderer {
             this.cameraPersp.position.set(center.x + dist, center.y + dist, center.z + dist);
             this.controls.update();
         }
-    }
-    
-    render() {
-        if (this.mode === '3D') {
-            this.controls.update();
-        }
-        this.renderer.render(this.scene, this.activeCamera);
     }
 }
