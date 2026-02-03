@@ -6,6 +6,7 @@
 import { STATE } from '../core/state.js';
 import * as THREE from 'https://esm.sh/three@0.160.0';
 import { DocumentOp } from './document-op.js';
+import { Geometry } from '../utils/geometry.js';
 
 export const ThreedOp = {
     handleMouseDown: (e) => {
@@ -80,14 +81,20 @@ export const ThreedOp = {
             const shape = STATE.document.shapes.find(s => s.id === shapeId);
             
             if (shape) {
-                // We store the relative offset from its original 2D centroid
-                // Original geometry is centered at its centroid
-                // group.position contains [cx + tx, cy + ty, tz]
+                const centroid = Geometry.calculateCentroid(shape.points);
                 
-                // Let's just store the world position and rotation directly
+                // Save RELATIVE position (World Pos - Original 2D Center)
                 shape.transform3D = {
-                    position: { x: group.position.x, y: group.position.y, z: group.position.z },
-                    rotation: { x: group.rotation.x, y: group.rotation.y, z: group.rotation.z }
+                    position: {
+                        x: group.position.x - centroid.x,
+                        y: group.position.y - centroid.y,
+                        z: group.position.z
+                    },
+                    rotation: {
+                        x: group.rotation.x,
+                        y: group.rotation.y,
+                        z: group.rotation.z
+                    }
                 };
             }
         });
