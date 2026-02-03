@@ -267,7 +267,7 @@ export class WebGLRenderer {
         if (this.extrudedMeshes.length > 0) return; 
         const self = this;
 
-        const grid = new THREE.GridHelper(1000, 100);
+        const grid = new THREE.GridHelper(10000, 1000, 0xcccccc, 0xe5e5e5);
         grid.rotation.x = Math.PI / 2;
         this.scene.add(grid);
         this.extrudedMeshes.push(grid);
