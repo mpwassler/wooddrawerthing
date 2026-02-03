@@ -32,6 +32,7 @@ export const DraggingOp = {
 
             let startPt = shape.points[0];
             let xMultiplier = 1;
+            const pts = shape.points;
 
             if (activeFace === 'BACK') {
                 startPt = { x: 2 * cx - shape.points[0].x, y: shape.points[0].y };
