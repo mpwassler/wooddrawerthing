@@ -7,6 +7,7 @@ import * as THREE from 'https://esm.sh/three@0.160.0';
 import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/TransformControls.js';
 import { CONFIG } from '../core/config.js';
+import { Geometry } from '../utils/geometry.js';
 
 export class WebGLRenderer {
     constructor(canvasElement) {
@@ -244,7 +245,7 @@ export class WebGLRenderer {
     // --- 3D LOGIC ---
 
     render3DScene(shapes) {
-        if (this.extrudedMeshes.length > 0) return; // Already built
+        if (this.extrudedMeshes.length > 0) return; 
         const self = this;
 
         const grid = new THREE.GridHelper(1000, 100);
@@ -263,594 +264,101 @@ export class WebGLRenderer {
             group.userData.shapeId = shapeData.id;
 
             const shape = new THREE.Shape();
-            let cx = 0, cy = 0;
-            shapeData.points.forEach(p => { cx += p.x; cy += p.y; });
-            cx /= shapeData.points.length; cy /= shapeData.points.length;
+            const centroid = Geometry.calculateCentroid(shapeData.points);
+            const cx = centroid.x, cy = centroid.y;
 
             shape.moveTo(shapeData.points[0].x - cx, shapeData.points[0].y - cy);
             for (let i = 1; i < shapeData.points.length; i++) {
                 shape.lineTo(shapeData.points[i].x - cx, shapeData.points[i].y - cy);
             }
             
-                        // Add Holes (Cutouts)
-            
-                        if (shapeData.faceData && shapeData.faceData.FRONT && shapeData.faceData.FRONT.cutouts) {
-            
-                            const startPt = shapeData.points[0];
-            
-                            shapeData.faceData.FRONT.cutouts.forEach(c => {
-            
-                                // If depth is less than full thickness, it's a pocket, not a through-hole.
-            
-                                // For now, only through-holes are added to shape.holes.
-            
-                                if (c.depth >= shapeData.thickness) {
-            
-                                    const hPath = new THREE.Path();
-            
-                                    const hx = (startPt.x + c.x * scale) - cx;
-            
-                                    const hy = (startPt.y + c.y * scale) - cy;
-            
-                                    const hw = c.w * scale, hh = c.h * scale;
-            
-                                    hPath.moveTo(hx, hy); hPath.lineTo(hx + hw, hy);
-            
-                                    hPath.lineTo(hx + hw, hy + hh);
-            
-                                    hPath.lineTo(hx, hy + hh);
-            
-                                    hPath.lineTo(hx, hy);
-            
-                                    shape.holes.push(hPath);
-            
-                                }
-            
-                            });
-            
-                        }
-            
-            
-            
-                                                const thickness = (shapeData.thickness || CONFIG.DEFAULT_THICKNESS) * scale;
-            
-            
-            
-                                                const geom = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: true, bevelThickness: 1, bevelSize: 1 });
-            
-                        const mat = this._getMeshMaterial('#e0c097');
-            
-                        const mainMesh = new THREE.Mesh(geom, mat);
-            
-                        mainMesh.scale.y = -1;
-            
-                        mainMesh.castShadow = true; mainMesh.receiveShadow = true;
-            
-                        group.add(mainMesh);
-            
-            
-            
-                        // Render Partial-Depth Cutouts (Pockets) and Tenons
-            
-                        const renderAddon = (item, isCutout) => {
-            
-                            const itemShape = new THREE.Shape();
-            
-                            const startPt = shapeData.points[0];
-            
-                            const ix = (startPt.x + item.x * scale) - cx;
-            
-                            const iy = (startPt.y + item.y * scale) - cy;
-            
-                            const iw = item.w * scale, ih = item.h * scale;
-            
-                            itemShape.moveTo(ix, iy); itemShape.lineTo(ix + iw, iy);
-            
-                            itemShape.lineTo(ix + iw, iy + ih); itemShape.lineTo(ix, iy + ih);
-            
-                            itemShape.lineTo(ix, iy);
-            
-            
-            
-                                            const itemDepth = (item.depth || CONFIG.DEFAULT_THICKNESS) * scale;
-            
-            
-            
-                                            const itemGeom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: true, bevelSize: 1 });
-            
-                            // Use a darker color for pockets to indicate subtraction
-            
-                            const itemMat = isCutout ? this._getMeshMaterial('#c0a077') : mat;
-            
-                            const itemMesh = new THREE.Mesh(itemGeom, itemMat);
-            
-                            itemMesh.scale.y = -1;
-            
-                            
-            
-                            if (isCutout) {
-            
-                                // Position pocket on the front surface, extruding inwards
-            
-                                itemMesh.position.z = 0.1; // Slightly offset to avoid flickering
-            
-                            } else {
-            
-                                // Tenon position logic
-            
-                                const inset = (item.inset || 0) * scale;
-            
-                                itemMesh.position.z = inset;
-            
-                            }
-            
-                            group.add(itemMesh);
-            
-                        };
-            
-            
-            
-                                    // Edges and Front additions
-            
-            
-            
-                                    Object.keys(shapeData.faceData).forEach(faceKey => {
-            
-            
-            
-                                        const data = shapeData.faceData[faceKey];
-            
-            
-            
-                                        
-            
-            
-            
-                                        // FRONT / BACK Logic
-            
-            
-            
-                                        if (faceKey === 'FRONT') {
-            
-            
-            
-                                            data.cutouts.forEach(c => { if (c.depth < shapeData.thickness) renderAddon(c, true); });
-            
-            
-            
-                                            data.tenons.forEach(t => renderAddon(t, false));
-            
-            
-            
-                                        }
-            
-            
-            
-                                        
-            
-            
-            
-                                        // EDGE Logic
-            
-            
-            
-                                        else if (faceKey.startsWith('EDGE_')) {
-            
-            
-            
-                                            const edgeIdx = parseInt(faceKey.split('_')[1]);
-            
-            
-            
-                                            const p1 = shapeData.points[edgeIdx];
-            
-            
-            
-                                            const p2 = shapeData.points[(edgeIdx + 1) % shapeData.points.length];
-            
-            
-            
-                                            
-            
-            
-            
-                                            // Edge Vector (2D)
-            
-            
-            
-                                            const dx = p2.x - p1.x;
-            
-            
-            
-                                            const dy = p2.y - p1.y;
-            
-            
-            
-                                            const len = Math.sqrt(dx*dx + dy*dy);
-            
-            
-            
-                                            const angle = Math.atan2(dy, dx);
-            
-            
-            
-                                            
-            
-            
-            
-                                            // Centroid offset
-            
-            
-            
-                                            const startX = p1.x - cx;
-            
-            
-            
-                                            const startY = p1.y - cy;
-            
-            
-            
-                        
-            
-            
-            
-                                            data.cutouts.forEach(c => renderEdgeItem(c, true, startX, startY, angle, thickness));
-            
-            
-            
-                                            data.tenons.forEach(t => renderEdgeItem(t, false, startX, startY, angle, thickness));
-            
-            
-            
-                                        }
-            
-            
-            
-                                    });
-            
-            
-            
-                        
-            
-            
-            
-                                    // Helper to render items on an edge
-            
-            
-            
-                                    function renderEdgeItem(item, isCutout, startX, startY, angle, boardThickness) {
-            
-            
-            
-                                        // 1. Create the Shape (on the local 2D plane of the edge)
-            
-            
-            
-                                        // Edge View: X = Along Edge, Y = Along Thickness (Z in 3D)
-            
-            
-            
-                                        const itemShape = new THREE.Shape();
-            
-            
-            
-                                        const ix = item.x * scale;
-            
-            
-            
-                                        const iy = item.y * scale; // This maps to Z-height in 3D
-            
-            
-            
-                                        const iw = item.w * scale;
-            
-            
-            
-                                        const ih = item.h * scale;
-            
-            
-            
-                                        
-            
-            
-            
-                                        itemShape.moveTo(ix, iy); 
-            
-            
-            
-                                        itemShape.lineTo(ix + iw, iy);
-            
-            
-            
-                                        itemShape.lineTo(ix + iw, iy + ih); 
-            
-            
-            
-                                        itemShape.lineTo(ix, iy + ih);
-            
-            
-            
-                                        itemShape.lineTo(ix, iy);
-            
-            
-            
-                        
-            
-            
-            
-                                        // 2. Extrude
-            
-            
-            
-                                        // Depth goes "Inwards" (negative normal) for cutouts, "Outwards" for tenons
-            
-            
-            
-                                        // But typically ExtrudeGeometry extrudes in +Z. We rotate the mesh to align.
-            
-            
-            
-                                        const itemDepth = (item.depth || CONFIG.DEFAULT_THICKNESS) * scale;
-            
-            
-            
-                                        const geom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: true, bevelSize: 1 });
-            
-            
-            
-                                        const mat = isCutout ? self._getMeshMaterial('#c0a077') : self._getMeshMaterial('#e0c097');
-            
-            
-            
-                                        const mesh = new THREE.Mesh(geom, mat);
-            
-            
-            
-                        
-            
-            
-            
-                                        // 3. Align to Edge
-            
-            
-            
-                                        // Initial: Shape is in XY plane. Extrusion is +Z.
-            
-            
-            
-                                        // Target: 
-            
-            
-            
-                                        //   - Shape's X should align with Edge Vector.
-            
-            
-            
-                                        //   - Shape's Y should align with Board Thickness (World Z).
-            
-            
-            
-                                        //   - Extrusion (+Z) should align with Edge Normal (Inward/Outward).
-            
-            
-            
-                                        
-            
-            
-            
-                                        // Rotate "Up" so the 2D Y (thickness) points to World Z
-            
-            
-            
-                                        mesh.rotation.x = Math.PI / 2; 
-            
-            
-            
-                                        
-            
-            
-            
-                                        // Now Shape X is World X, Shape Y is World -Z (oops).
-            
-            
-            
-                                        // Let's reset and construct a matrix.
-            
-            
-            
-                                        
-            
-            
-            
-                                        // Easier approach: Rotate the mesh group
-            
-            
-            
-                                        const pivot = new THREE.Group();
-            
-            
-            
-                                        
-            
-            
-            
-                                        // Move pivot to p1
-            
-            
-            
-                                        pivot.position.set(startX, startY, 0); 
-            
-            
-            
-                                        
-            
-            
-            
-                                        // Rotate pivot to align X with edge
-            
-            
-            
-                                        pivot.rotation.z = angle;
-            
-            
-            
-                                        
-            
-            
-            
-                                        // Now inside pivot: X is along edge. Y is Normal (Perpendicular). Z is Up (Thickness).
-            
-            
-            
-                                        // Our Drawing: X is along Edge. Y is Thickness.
-            
-            
-            
-                                        // We need to map Drawing Y -> Pivot Z.
-            
-            
-            
-                                        // Drawing X -> Pivot X.
-            
-            
-            
-                                        // Extrusion -> Pivot Y (Normal).
-            
-            
-            
-                                        
-            
-            
-            
-                                        mesh.rotation.x = -Math.PI / 2; // Maps Y -> Z
-            
-            
-            
-                                        // Now Extrusion is along +Y (which is Edge Normal / Perpendicular to edge)
-            
-            
-            
-                                        
-            
-            
-            
-                                        // If Cutout: We want it to go IN to the board. 
-            
-            
-            
-                                        // Board is to the "Left" of edge vector? 
-            
-            
-            
-                                        // Polygon winding is typically CCW. Normal points "Left".
-            
-            
-            
-                                        // So +Y in Pivot should be "Inwards".
-            
-            
-            
-                                        
-            
-            
-            
-                                        // Position adjustment for Tenons (Outwards)
-            
-            
-            
-                                        // Tenon Inset pushes it "Inwards" (+Y)
-            
-            
-            
-                                        // Tenon Itself should stick "Outwards" (-Y)
-            
-            
-            
-                                        
-            
-            
-            
-                                        if (isCutout) {
-            
-            
-            
-                                            // Cutout goes IN (+Y)
-            
-            
-            
-                                            // But we want visual pocket. It starts at Edge surface (Y=0) and goes to Y=Depth.
-            
-            
-            
-                                            // Just slightly offset Y to avoid z-fighting on surface
-            
-            
-            
-                                            mesh.position.y = -0.1; 
-            
-            
-            
-                                        } else {
-            
-            
-            
-                                            // Tenon goes OUT (-Y)
-            
-            
-            
-                                            // If inset is 0, it starts at 0 and goes to -Length.
-            
-            
-            
-                                            // ExtrudeGeometry goes 0 to +Depth.
-            
-            
-            
-                                            // So we rotate it 180 around X? Or just scale Y -1?
-            
-            
-            
-                                            // Let's just move it back.
-            
-            
-            
-                                            mesh.position.y = -itemDepth; 
-            
-            
-            
-                                            
-            
-            
-            
-                                            // Handle Inset (Move +Y)
-            
-            
-            
-                                            const inset = (item.inset || 0) * scale;
-            
-            
-            
-                                            mesh.position.y += inset;
-            
-            
-            
-                                        }
-            
-            
-            
-                        
-            
-            
-            
-                                        pivot.add(mesh);
-            
-            
-            
-                                        group.add(pivot);
-            
-            
-            
-                                    }
+            // Add Holes (Cutouts)
+            if (shapeData.faceData?.FRONT?.cutouts) {
+                const startPt = shapeData.points[0];
+                shapeData.faceData.FRONT.cutouts.forEach(c => {
+                    if (c.depth >= shapeData.thickness) {
+                        const hPath = new THREE.Path();
+                        const hx = (startPt.x + c.x * scale) - cx;
+                        const hy = (startPt.y + c.y * scale) - cy;
+                        const hw = c.w * scale, hh = c.h * scale;
+                        hPath.moveTo(hx, hy); hPath.lineTo(hx + hw, hy);
+                        hPath.lineTo(hx + hw, hy + hh); hPath.lineTo(hx, hy + hh);
+                        hPath.lineTo(hx, hy);
+                        shape.holes.push(hPath);
+                    }
+                });
+            }
+
+            const thickness = (shapeData.thickness || CONFIG.DEFAULT_THICKNESS) * scale;
+            const geom = new THREE.ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: true, bevelThickness: 1, bevelSize: 1 });
+            const mat = this._getMeshMaterial('#e0c097');
+            const mainMesh = new THREE.Mesh(geom, mat);
+            mainMesh.scale.y = -1;
+            mainMesh.castShadow = true; mainMesh.receiveShadow = true;
+            group.add(mainMesh);
+
+            const renderAddon = (item, isCutout, faceKey) => {
+                const itemShape = new THREE.Shape();
+                const { origin } = Geometry.getFaceOrigin(shapeData, faceKey, scale);
+                const ix = (origin.x + item.x * scale) - cx;
+                const iy = (origin.y + item.y * scale) - cy;
+                const iw = item.w * scale, ih = item.h * scale;
+                itemShape.moveTo(ix, iy); itemShape.lineTo(ix + iw, iy);
+                itemShape.lineTo(ix + iw, iy + ih); itemShape.lineTo(ix, iy + ih);
+                itemShape.lineTo(ix, iy);
+
+                const itemDepth = (item.depth || CONFIG.DEFAULT_THICKNESS) * scale;
+                const itemGeom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: true, bevelSize: 1 });
+                const itemMat = isCutout ? self._getMeshMaterial('#c0a077') : mat;
+                const itemMesh = new THREE.Mesh(itemGeom, itemMat);
+                itemMesh.scale.y = -1;
+                
+                if (isCutout) {
+                    itemMesh.position.z = 0.1; 
+                } else {
+                    const inset = (item.inset || 0) * scale;
+                    itemMesh.position.z = inset;
+                }
+                group.add(itemMesh);
+            };
+
+            const renderEdgeItem = (item, isCutout, startX, startY, angle) => {
+                const itemShape = new THREE.Shape();
+                const ix = item.x * scale, iy = item.y * scale;
+                const iw = item.w * scale, ih = item.h * scale;
+                itemShape.moveTo(ix, iy); itemShape.lineTo(ix + iw, iy);
+                itemShape.lineTo(ix + iw, iy + ih); itemShape.lineTo(ix, iy + ih);
+                itemShape.lineTo(ix, iy);
+
+                const itemDepth = (item.depth || CONFIG.DEFAULT_THICKNESS) * scale;
+                const geom = new THREE.ExtrudeGeometry(itemShape, { depth: itemDepth, bevelEnabled: true, bevelSize: 1 });
+                const mesh = new THREE.Mesh(geom, isCutout ? self._getMeshMaterial('#c0a077') : self._getMeshMaterial('#e0c097'));
+                const pivot = new THREE.Group();
+                pivot.position.set(startX, startY, 0); 
+                pivot.rotation.z = angle;
+                mesh.rotation.x = -Math.PI / 2;
+                if (isCutout) {
+                    mesh.position.y = -0.1; 
+                } else {
+                    mesh.position.y = -itemDepth + ((item.inset || 0) * scale); 
+                }
+                pivot.add(mesh);
+                group.add(pivot);
+            };
+
+            Object.keys(shapeData.faceData).forEach(faceKey => {
+                const data = shapeData.faceData[faceKey];
+                if (faceKey === 'FRONT') {
+                    data.cutouts.forEach(c => { if (c.depth < shapeData.thickness) renderAddon(c, true, faceKey); });
+                    data.tenons.forEach(t => renderAddon(t, false, faceKey));
+                } else if (faceKey.startsWith('EDGE_')) {
+                    const idx = parseInt(faceKey.split('_')[1]);
+                    const p1 = shapeData.points[idx], p2 = shapeData.points[(idx + 1) % shapeData.points.length];
+                    const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                    data.cutouts.forEach(c => renderEdgeItem(c, true, p1.x - cx, p1.y - cy, angle));
+                    data.tenons.forEach(t => renderEdgeItem(t, false, p1.x - cx, p1.y - cy, angle));
+                }
+            });
 
             const t3d = shapeData.transform3D || { position: {x:0, y:0, z:0}, rotation: {x:0, y:0, z:0} };
             group.position.set(cx + t3d.position.x, cy + t3d.position.y, t3d.position.z);

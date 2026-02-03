@@ -65,15 +65,12 @@ export const JoineryOp = {
 
     calculateMirrorPosition: (shape, tenons) => {
         const last = tenons[tenons.length - 1];
-        const pts = shape.points;
         const scale = CONFIG.SCALE_PIXELS_PER_INCH;
-        const startPt = pts[0];
+        const startPt = shape.points[0];
         
-        let cx = 0, cy = 0;
-        pts.forEach(p => { cx += p.x; cy += p.y; });
-        cx /= pts.length; cy /= pts.length;
+        const centroid = Geometry.calculateCentroid(shape.points);
 
         const lastCenter = { x: startPt.x + (last.x + last.w / 2) * scale, y: startPt.y + (last.y + last.h / 2) * scale };
-        return { x: cx - (lastCenter.x - cx), y: cy - (lastCenter.y - cy) };
+        return { x: centroid.x - (lastCenter.x - centroid.x), y: centroid.y - (lastCenter.y - centroid.y) };
     }
 };

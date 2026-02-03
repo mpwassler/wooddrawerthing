@@ -25,27 +25,8 @@ export const DraggingOp = {
             const { item, shape, offset, listType } = dragging;
             const scale = CONFIG.SCALE_PIXELS_PER_INCH;
             const activeFace = shape.activeFace || 'FRONT';
-            
-            let cx = 0, cy = 0;
-            shape.points.forEach(p => { cx += p.x; cy += p.y; });
-            cx /= shape.points.length; cy /= shape.points.length;
-
-            let startPt = shape.points[0];
-            let xMultiplier = 1;
-            const pts = shape.points;
-
-            if (activeFace === 'BACK') {
-                startPt = { x: 2 * cx - shape.points[0].x, y: shape.points[0].y };
-                xMultiplier = -1;
-            } else if (activeFace.startsWith('EDGE_')) {
-                const edgeIdx = parseInt(activeFace.split('_')[1]);
-                const edgeLen = shape.points[edgeIdx].lengthToNext || 0;
-                const thickness = shape.thickness || CONFIG.DEFAULT_THICKNESS;
-                startPt = { 
-                    x: cx - (edgeLen * scale) / 2, 
-                    y: cy - (thickness * scale) / 2 
-                };
-            }
+            const { origin, xMult } = Geometry.getFaceOrigin(shape, activeFace, scale);
+            const centroid = Geometry.calculateCentroid(shape.points);
             
             let newWorldX = mouseWorld.x - offset.x;
             let newWorldY = mouseWorld.y - offset.y;
@@ -59,6 +40,7 @@ export const DraggingOp = {
             // --- Snapping Logic ---
             if (listType === 'tenon') {
                 let minDist = Infinity, bestSnap = null;
+                const pts = shape.points;
                 for (let i = 0; i < pts.length; i++) {
                     const p1 = pts[i], p2 = pts[(i + 1) % pts.length];
                     const closest = Geometry.closestPointOnSegment({x: tCenterX, y: tCenterY}, p1, p2);
@@ -73,38 +55,38 @@ export const DraggingOp = {
                     if (bestSnap.isVert) {
                         newWorldX = Math.abs((newWorldX + item.w * scale) - bestSnap.closest.x) < Math.abs(newWorldX - bestSnap.closest.x) ? bestSnap.closest.x - item.w * scale : bestSnap.closest.x;
                         tCenterX = newWorldX + halfW;
-                        if (Math.abs(tCenterY - cy) < 50) {
-                            newWorldY = cy - halfH;
-                            ui.activeDrawing.alignmentGuide = { start: {x: cx - 20, y: cy}, end: {x: cx + 20, y: cy} };
+                        if (Math.abs(tCenterY - centroid.y) < 50) {
+                            newWorldY = centroid.y - halfH;
+                            ui.activeDrawing.alignmentGuide = { start: {x: centroid.x - 20, y: centroid.y}, end: {x: centroid.x + 20, y: centroid.y} };
                         }
                     } else {
                         newWorldY = Math.abs((newWorldY + item.h * scale) - bestSnap.closest.y) < Math.abs(newWorldY - bestSnap.closest.y) ? bestSnap.closest.y - item.h * scale : bestSnap.closest.y;
                         tCenterY = newWorldY + halfH;
-                        if (Math.abs(tCenterX - cx) < 50) {
-                            newWorldX = cx - halfW;
-                            ui.activeDrawing.alignmentGuide = { start: {x: cx, y: cy - 20}, end: {x: cx, y: cy + 20} };
+                        if (Math.abs(tCenterX - centroid.x) < 50) {
+                            newWorldX = centroid.x - halfW;
+                            ui.activeDrawing.alignmentGuide = { start: {x: centroid.x, y: centroid.y - 20}, end: {x: centroid.x, y: centroid.y + 20} };
                         }
                     }
                 }
             } else {
                 // Cutout Snapping
-                if (Math.abs(tCenterX - cx) < 30) { 
-                    newWorldX = cx - halfW; 
-                    ui.activeDrawing.alignmentGuide = { start: {x: cx, y: cy - 20}, end: {x: cx, y: cy + 20} }; 
+                if (Math.abs(tCenterX - centroid.x) < 30) { 
+                    newWorldX = centroid.x - halfW; 
+                    ui.activeDrawing.alignmentGuide = { start: {x: centroid.x, y: centroid.y - 20}, end: {x: centroid.x, y: centroid.y + 20} }; 
                 }
-                if (Math.abs(tCenterY - cy) < 30) { 
-                    newWorldY = cy - halfH; 
-                    ui.activeDrawing.alignmentGuide = { start: {x: cx - 20, y: cy}, end: {x: cx + 20, y: cy} }; 
+                if (Math.abs(tCenterY - centroid.y) < 30) { 
+                    newWorldY = centroid.y - halfH; 
+                    ui.activeDrawing.alignmentGuide = { start: {x: centroid.x - 20, y: centroid.y}, end: {x: centroid.x + 20, y: centroid.y} }; 
                 }
             }
 
+            // Persistence
             if (activeFace === 'BACK') {
-                // For BACK, item.x is measured from the right-side mirrored origin
-                item.x = (startPt.x - (newWorldX + item.w * scale)) / scale;
+                item.x = (origin.x - (newWorldX + item.w * scale)) / scale;
             } else {
-                item.x = (newWorldX - startPt.x) / scale;
+                item.x = (newWorldX - origin.x) / scale;
             }
-            item.y = (newWorldY - startPt.y) / scale;
+            item.y = (newWorldY - origin.y) / scale;
         }
 
         else if (dragging.type === 'THICKNESS') {

@@ -97,6 +97,47 @@ export const Geometry = {
     },
 
     /**
+     * Calculates the geometric center of a set of points.
+     */
+    calculateCentroid: (points) => {
+        if (!points || points.length === 0) return { x: 0, y: 0 };
+        let cx = 0, cy = 0;
+        points.forEach(p => { cx += p.x; cy += p.y; });
+        return { x: cx / points.length, y: cy / points.length };
+    },
+
+    /**
+     * Returns the visual origin and X-multiplier for a specific face view.
+     */
+    getFaceOrigin: (shape, faceName, scale) => {
+        const centroid = Geometry.calculateCentroid(shape.points);
+        
+        // Default Front
+        if (!faceName || faceName === 'FRONT') {
+            return { origin: shape.points[0], xMult: 1 };
+        }
+
+        if (faceName === 'BACK') {
+            return { 
+                origin: { x: 2 * centroid.x - shape.points[0].x, y: shape.points[0].y }, 
+                xMult: -1 
+            };
+        }
+
+        if (faceName.startsWith('EDGE_')) {
+            const idx = parseInt(faceName.split('_')[1]);
+            const len = shape.points[idx].lengthToNext || 0;
+            const thick = shape.thickness || 1.0; // Use default from config if possible
+            return {
+                origin: { x: centroid.x - (len * scale) / 2, y: centroid.y - (thick * scale) / 2 },
+                xMult: 1
+            };
+        }
+
+        return { origin: shape.points[0], xMult: 1 };
+    },
+
+    /**
      * Recalculates lengthToNext for all points in a closed shape.
      */
     recalculateSideLengths: (points, scale) => {
