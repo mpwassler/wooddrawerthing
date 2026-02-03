@@ -16,11 +16,16 @@ import { JoineryOp } from '../operations/joinery-op.js';
 import { DocumentOp } from '../operations/document-op.js';
 import { ProjectOp } from '../operations/project-op.js';
 import { ShapeModel } from '../core/model.js';
+import { DOMRenderer } from './dom-renderer.js';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export const Input = {
     // --- Helpers ---
+    // activeFaceData moved to DOMRenderer/internal use, or we export a helper in Geometry/State?
+    // Let's keep a simple getter here if needed for Dragging, or import from DOMRenderer?
+    // Actually DraggingOp uses it too. Let's move 'activeFaceData' to STATE or Geometry helper? 
+    // For now, let's duplicate the getter or keep it here and export it.
     activeFaceData: () => {
         const shape = STATE.selectedShape;
         if (!shape || !shape.faceData) return { tenons: [], cutouts: [] };
@@ -39,27 +44,31 @@ export const Input = {
 
     // --- Canvas Routing ---
     handleCanvasClick: (e) => {
-        if (e.button !== 0 || STATE.ui.view.isPanning) return;
+        if (e.button !== 0) return;
+        
         if (STATE.ui.mode === 'DRAW') {
             const mouseWorld = Geometry.screenToWorld({ x: e.clientX, y: e.clientY }, STATE.ui.view);
             const mouseScreen = { x: e.clientX, y: e.clientY };
             const newShape = DrawingOp.handleDrawClick(mouseWorld, mouseScreen);
             if (newShape) {
                 STATE.ui.selectedShapeId = newShape.id;
-                Input.updatePropertiesPanel(newShape);
+                DOMRenderer.updatePropertiesPanel(newShape);
                 Input.updateUIState();
             }
         } else {
             SelectionOp.handleSelect(e.ctrlKey);
-            Input.updatePropertiesPanel(STATE.selectedShape);
+            DOMRenderer.updatePropertiesPanel(STATE.selectedShape);
         }
     },
 
     handleMouseDown: (e) => {
         if (!DOM.boolMenu.classList.contains('hidden')) Input.hideBooleanMenu();
 
-        if (e.button === 1) {
+        // Panning Logic
+        if (e.button === 1 || (e.button === 0 && STATE.ui.isSpacePressed)) {
             ViewportOp.startPanning(e);
+            STATE.ui.view.isPanning = true; 
+            if (STATE.ui.isSpacePressed) DOM.canvas.style.cursor = 'grabbing';
             return;
         }
 
@@ -70,31 +79,13 @@ export const Input = {
             if (STATE.selectedShape) {
                 const shape = STATE.selectedShape;
                 const scale = CONFIG.SCALE_PIXELS_PER_INCH;
-                
-                // Use active face data for detection
                 const { tenons, cutouts } = Input.activeFaceData();
-                
-                let cx = 0, cy = 0;
-                shape.points.forEach(p => { cx += p.x; cy += p.y; });
-                cx /= shape.points.length; cy /= shape.points.length;
-
-                let origin = shape.points[0];
-                let xMultiplier = 1;
-
-                if (shape.activeFace === 'BACK') {
-                    origin = { x: 2 * cx - shape.points[0].x, y: shape.points[0].y };
-                    xMultiplier = -1;
-                } else if (shape.activeFace && shape.activeFace.startsWith('EDGE_')) {
-                    const edgeIdx = parseInt(shape.activeFace.split('_')[1]);
-                    const edgeLen = shape.points[edgeIdx].lengthToNext || 0;
-                    const thickness = shape.thickness || CONFIG.DEFAULT_THICKNESS;
-                    origin = { x: cx - (edgeLen * scale) / 2, y: cy - (thickness * scale) / 2 };
-                }
+                const { origin, xMult } = Geometry.getFaceOrigin(shape, shape.activeFace, scale);
 
                 const findItem = (list) => {
                     if (!list) return null;
                     return list.find(item => {
-                        const worldX = origin.x + (item.x * scale * xMultiplier) - (xMultiplier === -1 ? item.w * scale : 0);
+                        const worldX = origin.x + (item.x * scale * xMult) - (xMult === -1 ? item.w * scale : 0);
                         const worldY = origin.y + item.y * scale;
                         return (mouseWorld.x >= worldX && mouseWorld.x <= worldX + item.w * scale &&
                                 mouseWorld.y >= worldY && mouseWorld.y <= worldY + item.h * scale);
@@ -107,21 +98,16 @@ export const Input = {
                 if (foundCutout || foundTenon) {
                     const item = foundCutout || foundTenon;
                     const type = foundCutout ? 'cutout' : 'tenon';
-                    
-                    const worldX = origin.x + (item.x * scale * xMultiplier) - (xMultiplier === -1 ? item.w * scale : 0);
-                    const worldY = origin.y + item.y * scale;
-                    
+                    // ... (dragging setup)
                     STATE.ui.dragging = { 
-                        type: 'JOINERY', 
-                        item, 
-                        listType: type, 
-                        shape, 
-                        offset: { x: mouseWorld.x - worldX, y: mouseWorld.y - worldY } 
+                        type: 'JOINERY', item, listType: type, shape, 
+                        offset: { x: mouseWorld.x - (origin.x + (item.x * scale * xMult) - (xMult === -1 ? item.w * scale : 0)), 
+                                  y: mouseWorld.y - (origin.y + item.y * scale) } 
                     };
                     return;
                 }
             }
-
+            
             // Then check for shape drag
             if (STATE.ui.hoveredShapeId) {
                 STATE.ui.dragging = { type: 'SHAPE', item: STATE.hoveredShape, lastPos: { ...mouseWorld } };
@@ -129,7 +115,8 @@ export const Input = {
             }
         }
     },
-
+    
+    // ... (keep MouseMove, MouseUp, Wheel, Keys as is) ...
     handleMouseMove: (e) => {
         const mouseScreen = { x: e.clientX, y: e.clientY };
         const mouseWorld = Geometry.screenToWorld(mouseScreen, STATE.ui.view);
@@ -186,8 +173,31 @@ export const Input = {
     handleWheel: (e) => ViewportOp.handleZoom(e),
 
     handleKeyDown: (e) => {
+        if (e.repeat) return;
+        // Ignore if typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        if (e.key === ' ') {
+            STATE.ui.isSpacePressed = true;
+            if (!STATE.ui.view.isPanning) DOM.canvas.style.cursor = 'grab';
+        }
         if (STATE.ui.mode === 'DRAW' && e.key === 'Escape') {
             DrawingOp.cancel();
+        }
+    },
+
+    handleKeyUp: (e) => {
+        if (e.key === ' ') {
+            STATE.ui.isSpacePressed = false;
+            
+            // Abruptly end panning if it was active
+            if (STATE.ui.view.isPanning) {
+                ViewportOp.stopPanning();
+                STATE.ui.view.isPanning = false; // Force flag clear
+            }
+            
+            // Reset cursor immediately
+            DOM.canvas.style.cursor = STATE.ui.mode === 'DRAW' ? 'crosshair' : 'default';
         }
     },
 
@@ -199,121 +209,49 @@ export const Input = {
         }
     },
 
-    // --- UI Routing ---
-    updatePropertiesPanel: (shape) => {
-        if (!shape) { DOM.propPanel.classList.add('hidden'); return; }
-        DOM.propPanel.classList.remove('hidden');
-        DOM.propName.value = shape.name;
-        DOM.propThickness.value = Geometry.formatInches(shape.thickness || CONFIG.DEFAULT_THICKNESS);
-        let totalLen = 0;
-        shape.points.forEach(p => { if (p.lengthToNext) totalLen += p.lengthToNext; });
-        DOM.propLength.textContent = Geometry.formatInches(totalLen);
-        Input.renderJoineryList();
-        DocumentOp.updateJSONExport();
-    },
-
-    updateFaceSelector: () => {
-        const shape = STATE.selectedShape;
-        if (!shape) return;
-        
-        let label = "Front";
-        if (shape.activeFace === 'BACK') label = "Back";
-        else if (shape.activeFace && shape.activeFace.startsWith('EDGE_')) {
-            const idx = parseInt(shape.activeFace.split('_')[1]);
-            label = `Edge ${idx + 1}`;
-        }
-        DOM.faceLabel.innerText = label;
-    },
-
+    // --- UI Routing (Refactored) ---
+    // updatePropertiesPanel moved to DOMRenderer
+    // updateFaceSelector moved to DOMRenderer
+    
     cycleFace: (delta) => {
         const shape = STATE.selectedShape;
         if (!shape) return;
 
-        // 1. Build Face Buffer
         const faces = ['FRONT', 'BACK'];
         shape.points.forEach((p, i) => faces.push(`EDGE_${i}`));
 
-        // 2. Find Current Index
         let currIdx = faces.indexOf(shape.activeFace || 'FRONT');
         if (currIdx === -1) currIdx = 0;
 
-        // 3. Cycle with Wrap
         let nextIdx = (currIdx + delta + faces.length) % faces.length;
         shape.activeFace = faces[nextIdx];
 
-        // 4. Update UI
-        Input.updateFaceSelector();
-        Input.renderJoineryList();
+        DOMRenderer.updateFaceSelector(shape);
+        DOMRenderer.renderJoineryList(shape);
         DocumentOp.updateJSONExport();
     },
 
-    renderJoineryList: () => {
-        const shape = STATE.selectedShape;
-        if (!shape) return;
-        DOM.joineryList.innerHTML = '';
-        
-        const { tenons, cutouts } = Input.activeFaceData();
-        
-        if (cutouts) cutouts.forEach((c, i) => Input.createJoineryItemDOM('Cutout', c, i, 'cutout'));
-        if (tenons) tenons.forEach((t, i) => Input.createJoineryItemDOM('Tenon', t, i, 'tenon'));
-        
-        DocumentOp.updateJSONExport();
-    },
+    // renderJoineryList moved to DOMRenderer
+    // createJoineryItemDOM moved to DOMRenderer
 
-    createJoineryItemDOM: (label, data, index, type) => {
-        const div = document.createElement('div');
-        div.className = `joinery-item ${type}`;
-        
-        const top = document.createElement('div');
-        top.className = 'joinery-header';
-        top.innerText = `${label} ${index + 1}`;
-        const del = document.createElement('button');
-        del.innerHTML = '&times;';
-        del.className = 'joinery-delete-btn';
-        del.onclick = () => { JoineryOp.removeJoinery(type, index); Input.renderJoineryList(); Input.refreshView(); };
-        top.appendChild(del);
-        div.appendChild(top);
-
-        const dims = document.createElement('div');
-        dims.className = 'joinery-dims';
-        const addInp = (f, l) => {
-            dims.appendChild(document.createTextNode(l));
-            const i = document.createElement('input');
-            i.type = 'number'; i.value = data[f]; i.step = 0.125; i.style.width = '40px';
-            i.onchange = (e) => { 
-                data[f] = parseFloat(e.target.value); 
-                DocumentOp.updateJSONExport(); 
-                Input.refreshView(); 
-            };
-            dims.appendChild(i);
-        };
-        addInp('w', 'W:'); addInp('h', 'H:');
-        if (type === 'tenon') addInp('inset', 'In:');
-        addInp('depth', 'D:');
-        div.appendChild(dims);
-        DOM.joineryList.appendChild(div);
-    },
-
-    handleAddCutout: () => { JoineryOp.addCutout(); Input.renderJoineryList(); Input.refreshView(); },
-    handleAddTenon: () => { JoineryOp.addTenon(); Input.renderJoineryList(); Input.refreshView(); },
-    handlePropChange: () => { DocumentOp.updateShapeName(DOM.propName.value); Input.refreshView(); },
+    handleAddCutout: () => { JoineryOp.addCutout(); DOMRenderer.renderJoineryList(STATE.selectedShape); Input.refreshView(); Input.logState('Joinery Added'); },
+    handleAddTenon: () => { JoineryOp.addTenon(); DOMRenderer.renderJoineryList(STATE.selectedShape); Input.refreshView(); Input.logState('Joinery Added'); },
+    handlePropChange: () => { DocumentOp.updateShapeName(DOM.propName.value); Input.refreshView(); Input.logState('Property Change'); },
     handleDeleteShape: () => {
         DocumentOp.deleteSelectedShape();
         Input.updateUIState();
         Input.refreshView();
+        Input.logState('Shape Deleted');
     },
     handleJSONImport: () => { 
         if(DocumentOp.handleJSONImport()) {
-            Input.updatePropertiesPanel(STATE.selectedShape);
+            DOMRenderer.updatePropertiesPanel(STATE.selectedShape);
             Input.refreshView();
+            Input.logState('JSON Import');
         }
     },
     
-    hideBooleanMenu: () => {
-        DOM.boolMenu.classList.add('hidden');
-        STATE.ui.boolCandidate = null;
-    },
-
+    // ... (Boolean Ops use DOMRenderer.updatePropertiesPanel)
     handleBooleanUnion: () => {
         if (!STATE.ui.boolCandidate) return;
         const { active, target } = STATE.ui.boolCandidate;
@@ -324,9 +262,10 @@ export const Input = {
             STATE.document.shapes = STATE.document.shapes.filter(s => s !== active && s !== target);
             STATE.document.shapes.push(newShape);
             STATE.ui.selectedShapeId = newShape.id;
-            Input.updatePropertiesPanel(newShape);
+            DOMRenderer.updatePropertiesPanel(newShape);
             Input.updateUIState();
             ProjectOp.calculateTotalBoardFeet();
+            Input.logState('Boolean Union');
         }
         Input.hideBooleanMenu();
     },
@@ -341,13 +280,15 @@ export const Input = {
              STATE.document.shapes = STATE.document.shapes.filter(s => s !== active && s !== target);
              STATE.document.shapes.push(newShape);
              STATE.ui.selectedShapeId = newShape.id;
-             Input.updatePropertiesPanel(newShape);
+             DOMRenderer.updatePropertiesPanel(newShape);
              Input.updateUIState();
              ProjectOp.calculateTotalBoardFeet();
+             Input.logState('Boolean Subtract');
         }
         Input.hideBooleanMenu();
     },
     
+    // ... (rest is same)
     handleThicknessMouseDown: (e) => {
         const shape = STATE.selectedShape;
         if (!shape) return;
@@ -447,5 +388,16 @@ export const Input = {
         STATE.ui.is3DOpen = false;
         STATE.renderer3D.setMode('2D'); // Reset to 2D state/cleanup
         STATE.renderer3D.clear3D(); 
+    },
+    
+    // Debug
+    logState: (action) => {
+        console.group(`[State Update] ${action}`);
+        console.log('UI State:', structuredClone(STATE.ui));
+        console.log('Document:', structuredClone(STATE.document));
+        console.groupEnd();
     }
 };
+
+// Global for UI callbacks
+window.InputRef = Input;
