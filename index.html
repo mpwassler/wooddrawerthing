@@ -7,37 +7,46 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- Controls -->
+        <!-- Main Top Toolbar -->
         <div class="controls">
-            <!-- 2D Tools -->
-            <div id="2d-controls" class="mode-switcher">
-                <button id="draw-mode-btn" class="active">Draw</button>
-                <button id="select-mode-btn">Select</button>
+            <!-- Projects Dropdown -->
+            <div class="dropdown">
+                <button class="dropdown-btn">Projects ▾</button>
+                <div class="dropdown-content">
+                    <div id="project-list"></div>
+                    <div class="divider" style="margin: 5px 0;"></div>
+                    <button id="add-project-btn" class="add-btn">+ New Project</button>
+                </div>
             </div>
-            
+
             <div class="divider"></div>
-            
+
             <!-- View Mode -->
             <div class="mode-switcher">
                 <button id="view-2d-btn" class="active">2D</button>
                 <button id="view-3d-btn">3D</button>
             </div>
 
-            <div class="divider"></div>
-            <label>Length:</label>
-            <input type="text" id="measurement-input" placeholder="e.g., 8' 2 1/2&quot;">
-            <button id="apply-measurement">Apply</button>
-            <span id="total-board-feet" style="margin: 0 10px; font-weight: bold; color: #555;">0.0 BF</span>
-            <button id="reset-drawing">Reset</button>
-        </div>
-
-        <!-- Floating 3D Toolbar -->
-        <div id="3d-controls" class="controls hidden" style="position: absolute; bottom: 20px; left: 20px; top: auto; right: auto;">
-            <div class="mode-switcher">
-                <button id="tool-slice-btn">Slice</button>
-                <button id="reset-cam-btn">Reset Camera</button>
+            <!-- Contextual Tools (2D) -->
+            <div id="2d-controls" style="display: flex; align-items: center; gap: 15px;">
+                <div class="divider"></div>
+                <div class="mode-switcher">
+                    <button id="draw-mode-btn" class="active">Draw</button>
+                    <button id="select-mode-btn">Select</button>
+                </div>
             </div>
+
+            <!-- Contextual Tools (3D) -->
+            <div id="3d-controls" class="hidden" style="display: flex; align-items: center; gap: 15px;">
+                <div class="divider"></div>
+                <div class="mode-switcher">
+                    <button id="tool-slice-btn">Slice</button>
+                    <button id="reset-cam-btn">Reset Camera</button>
+                </div>
+            </div>
+
+            <div class="divider"></div>
+            <span id="total-board-feet" style="margin: 0 10px; font-weight: bold; color: #555;">0.0 BF</span>
         </div>
 
         <!-- Canvases (Stacked) -->
@@ -88,15 +97,6 @@
 
             <button id="prop-delete" class="delete-btn">Delete Shape</button>
         </div>
-
-        <!-- Project List Panel -->
-        <div class="side-panel">
-            <h2>Projects</h2>
-            <div id="project-list" style="flex: 1; overflow-y: auto; margin-bottom: 10px;"></div>
-            <button id="add-project-btn" style="background-color: #28a745; color: white;">+ New Project</button>
-        </div>
-
-        <!-- 3D Modal REMOVED -->
 
         <!-- Boolean Operations Menu -->
         <div id="boolean-menu" class="context-menu hidden" style="position: absolute; z-index: 100; background: #fff; border: 1px solid #999; box-shadow: 0 4px 15px rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; display: flex; flex-direction: column; gap: 8px; min-width: 120px;">

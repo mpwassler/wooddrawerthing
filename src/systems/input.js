@@ -344,24 +344,6 @@ export const Input = {
         e.preventDefault();
     },
 
-    handleInputApply: () => {
-        // Simple delegator for length input
-        const val = Geometry.parseMeasurement(DOM.input.value);
-        if (val === null || STATE.ui.drawState !== 'DRAWING_LINE') return;
-        // In this specific case, we'll keep the logic in Input for now or move to DrawingOp
-        // For simplicity of refactor, let's just use the logic from before
-        const pts = STATE.ui.activeDrawing.points;
-        const active = pts[pts.length - 1];
-        const dir = Geometry.normalize(STATE.ui.activeDrawing.selectedDirection);
-        const endPt = { x: active.x + dir.x * (val * CONFIG.SCALE_PIXELS_PER_INCH), y: active.y + dir.y * (val * CONFIG.SCALE_PIXELS_PER_INCH) };
-        active.lengthToNext = val;
-        pts.push(endPt);
-        STATE.ui.drawState = 'START_SHAPE';
-        STATE.ui.activeDrawing.selectedDirection = null;
-        DOM.input.value = '';
-        ProjectOp.calculateTotalBoardFeet();
-    },
-
     handleReset: () => {
         STATE.document.shapes = [];
         Input.switchTool('SELECT'); // Reset tool

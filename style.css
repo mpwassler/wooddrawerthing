@@ -76,14 +76,6 @@ label {
     color: #555;
 }
 
-#measurement-input {
-    padding: 8px 12px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 1em;
-    width: 150px;
-}
-
 button {
     padding: 8px 16px;
     border: none;
@@ -105,14 +97,6 @@ button.disabled {
     background-color: #ccc;
     color: #666;
     pointer-events: none;
-}
-
-#reset-drawing {
-    background-color: #dc3545;
-}
-
-#reset-drawing:hover {
-    background-color: #c82333;
 }
 
 #drawing-canvas {
@@ -253,31 +237,61 @@ button.disabled {
     align-items: center;
 }
 
-/* Projects Side Panel (Floating) */
-.side-panel {
-    position: absolute;
-    top: 80px;
-    left: 20px;
-    width: 220px;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
+/* Projects Dropdown */
+.dropdown {
+    position: relative;
+    display: inline-block;
 }
 
-.side-panel h2 {
-    margin-top: 0;
-    font-size: 1.1em;
+.dropdown-btn {
+    background-color: transparent;
     color: #333;
+    padding: 8px 12px;
+    font-size: 0.95em;
+    font-weight: 600;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    cursor: pointer;
 }
 
-#project-list {
-    padding: 0 5px;
+.dropdown-btn:hover {
+    background-color: #f8f9fa;
 }
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: white;
+    min-width: 220px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    z-index: 100;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+/* Invisible bridge to prevent menu from closing when moving mouse from button to content */
+.dropdown-content::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 0;
+    width: 100%;
+    height: 10px;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+.add-btn {
+    width: 100%;
+    background-color: #28a745;
+    margin-top: 5px;
+}
+
+/* Projects Side Panel (Floating) - REMOVED */
 
 .project-item {
     padding: 10px;

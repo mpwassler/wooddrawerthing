@@ -30,8 +30,6 @@ vi.mock('../core/dom.js', () => ({
         canvas: { style: {} },
         boolMenu: { classList: { contains: () => true, remove: vi.fn(), add: vi.fn() }, style: {} },
         propPanel: { classList: { add: vi.fn() } },
-        btnApply: { addEventListener: vi.fn() },
-        btnReset: { addEventListener: vi.fn() },
         btnModeDraw: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
         btnModeSelect: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
         btnView2D: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },

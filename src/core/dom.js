@@ -6,9 +6,6 @@
 export const DOM = {
     canvas: document.getElementById('drawing-canvas'),
     overlay: document.getElementById('overlay-canvas'),
-    input: document.getElementById('measurement-input'),
-    btnApply: document.getElementById('apply-measurement'),
-    btnReset: document.getElementById('reset-drawing'),
     totalBoardFeet: document.getElementById('total-board-feet'),
     btnModeDraw: document.getElementById('draw-mode-btn'),
     btnModeSelect: document.getElementById('select-mode-btn'),

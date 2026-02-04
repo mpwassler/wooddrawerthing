@@ -85,8 +85,6 @@ async function init() {
         }
     });
     
-    DOM.btnApply.addEventListener('click', Input.handleInputApply);
-    DOM.btnReset.addEventListener('click', Input.handleReset);
     // Event Listeners
     DOM.btnModeDraw.addEventListener('click', () => Input.switchTool('DRAW'));
     DOM.btnModeSelect.addEventListener('click', () => Input.switchTool('SELECT'));
@@ -95,9 +93,9 @@ async function init() {
     DOM.btnView3D.addEventListener('click', () => Input.switchView('3D'));
     
     // 3D Tools
-    DOM.btnResetCam.addEventListener('click', () => {
-        if (STATE.renderer3D) STATE.renderer3D.render3DScene(STATE.document.shapes, true);
-    });
+    // DOM.btnResetCam.addEventListener('click', () => {
+    //     if (STATE.renderer3D) STATE.renderer3D.render3DScene(STATE.document.shapes, true);
+    // });
     
     DOM.btnToolSlice.addEventListener('click', () => {
         const isActive = DOM.btnToolSlice.classList.toggle('active');
@@ -110,9 +108,6 @@ async function init() {
             if (STATE.renderer3D && STATE.renderer3D.transformControls) STATE.renderer3D.transformControls.detach();
         }
     });
-    
-    // Properties
-    DOM.input.addEventListener('keydown', (e) => { if(e.key === 'Enter') Input.handleInputApply(); });
     
     // Properties Panel
     DOM.propName.addEventListener('input', Input.handlePropChange);
