@@ -233,6 +233,22 @@ export const Geometry = {
     },
 
     /**
+     * Calculates the center of the Axis-Aligned Bounding Box (AABB).
+     * Better for visual pivots than vertex centroid.
+     */
+    calculateBoundingCenter: (points) => {
+        if (!points || points.length === 0) return { x: 0, y: 0 };
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        points.forEach(p => {
+            minX = Math.min(minX, p.x);
+            minY = Math.min(minY, p.y);
+            maxX = Math.max(maxX, p.x);
+            maxY = Math.max(maxY, p.y);
+        });
+        return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+    },
+
+    /**
      * Helper to handle the "Multi-Side" coordinate logic.
      * THEORY: Local Coordinate Systems.
      * - FRONT: Standard World Coordinates.

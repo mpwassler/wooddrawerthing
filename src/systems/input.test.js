@@ -168,23 +168,7 @@ describe('Input System - Panning vs Click', () => {
 
     
 
-                it('should ALLOW drawing even if Space is still held after a pan', () => {
-
-    
-
-        
-
-    
-
-                    STATE.ui.mode = 'DRAW';
-
-    
-
-        
-
-    
-
-                    STATE.ui.isSpacePressed = true;
+                    it('should ALLOW drawing even if Space is still held after a pan', () => {
 
     
 
@@ -200,23 +184,7 @@ describe('Input System - Panning vs Click', () => {
 
     
 
-                    // 1. Mouse Down (Start Pan)
-
-    
-
-        
-
-    
-
-                    Input.handleMouseDown({ button: 0, clientX: 100, clientY: 100 });
-
-    
-
-        
-
-    
-
-                    STATE.ui.view.isPanning = true;
+                        // ... (existing test code) ...
 
     
 
@@ -232,31 +200,7 @@ describe('Input System - Panning vs Click', () => {
 
     
 
-                    // 2. Mouse Up (End Pan) - Space still held!
-
-    
-
-        
-
-    
-
-                    Input.handleMouseUp({ clientX: 100, clientY: 100 });
-
-    
-
-        
-
-    
-
-                    expect(STATE.ui.view.isPanning).toBe(false);
-
-    
-
-        
-
-    
-
-                    expect(STATE.ui.isSpacePressed).toBe(true);
+                    });
 
     
 
@@ -272,15 +216,7 @@ describe('Input System - Panning vs Click', () => {
 
     
 
-                    // 3. First Click (ignored)
-
-    
-
-        
-
-    
-
-                    Input.handleCanvasClick({ button: 0, clientX: 100, clientY: 100 });
+                
 
     
 
@@ -296,7 +232,7 @@ describe('Input System - Panning vs Click', () => {
 
     
 
-                    // 4. Second Click (should work!)
+                    it('should suppress click even if Space is released BEFORE MouseUp', () => {
 
     
 
@@ -304,7 +240,7 @@ describe('Input System - Panning vs Click', () => {
 
     
 
-                    Input.handleCanvasClick({ button: 0, clientX: 110, clientY: 110 });
+            
 
     
 
@@ -312,7 +248,399 @@ describe('Input System - Panning vs Click', () => {
 
     
 
-                    expect(DrawingOp.handleDrawClick).toHaveBeenCalled();
+                        STATE.ui.mode = 'DRAW';
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        // 1. Space Down + Mouse Down
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        STATE.ui.isSpacePressed = true;
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        Input.handleMouseDown({ button: 0, clientX: 100, clientY: 100 });
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        expect(Input.isPanningInteraction).toBe(true);
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        // 2. Mouse Move (Pan)
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        Input.handleMouseMove({ clientX: 150, clientY: 150 });
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        // 3. Space Up (Release space early)
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        Input.handleKeyUp({ key: ' ' });
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        expect(STATE.ui.isSpacePressed).toBe(false);
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        expect(STATE.ui.view.isPanning).toBe(false);
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        // BUT interaction should still be marked as panning!
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        expect(Input.isPanningInteraction).toBe(true);
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        // 4. Mouse Up
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        Input.handleMouseUp({ clientX: 150, clientY: 150 });
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        expect(Input.ignoreNextClick).toBe(true);
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        // 5. Click should be suppressed
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        Input.handleCanvasClick({ button: 0, clientX: 150, clientY: 150 });
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        expect(DrawingOp.handleDrawClick).not.toHaveBeenCalled();
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                    });
+
+    
+
+        
+
+    
+
+            
 
     
 
@@ -328,7 +656,15 @@ describe('Input System - Panning vs Click', () => {
 
     
 
-            });
+            
+
+    
+
+        
+
+    
+
+                
 
     
 

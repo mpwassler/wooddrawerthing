@@ -24,7 +24,7 @@ export const DrawingOp = {
                     drawState: 'START_SHAPE',
                     activeDrawing: { ...ui.activeDrawing, points: [mouseWorld] }
                 }
-            });
+            }, true);
         } else if (ui.drawState === 'START_SHAPE') {
             if (activeDrawing.highlightedDirection) {
                 Store.dispatch('DRAW_DIRECTION_SET', {
@@ -36,7 +36,7 @@ export const DrawingOp = {
                             highlightedDirection: null 
                         }
                     }
-                });
+                }, true);
             } else {
                 // Reset to IDLE then restart (recursive-ish behavior but via store)
                 // Actually, just restart drawing at new point
@@ -45,7 +45,7 @@ export const DrawingOp = {
                         drawState: 'IDLE',
                         activeDrawing: { points: [mouseWorld], tempLine: null, alignmentGuide: null } // Immediately start new?
                     }
-                });
+                }, true);
                 // To match previous logic: effectively click again.
                 // Simpler: Just dispatch DRAW_START with new point.
                 Store.dispatch('DRAW_START', { 
@@ -53,7 +53,7 @@ export const DrawingOp = {
                         drawState: 'START_SHAPE',
                         activeDrawing: { ...ui.activeDrawing, points: [mouseWorld] }
                     }
-                });
+                }, true);
             }
         } else if (ui.drawState === 'DRAWING_LINE') {
             const activePt = activeDrawing.points[activeDrawing.points.length - 1];
@@ -81,7 +81,7 @@ export const DrawingOp = {
                         selectedShapeId: newShape.id,
                         mode: 'SELECT' // Switch tool
                     }
-                });
+                }, true); // Persist for Undo
                 
                 return newShape; 
             } else {
@@ -99,7 +99,7 @@ export const DrawingOp = {
                             snapTarget: null
                         }
                     }
-                });
+                }, true);
             }
         }
         return null;

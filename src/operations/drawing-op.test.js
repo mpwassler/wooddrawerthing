@@ -44,7 +44,7 @@ describe('DrawingOp', () => {
                         points: [mouse]
                     })
                 })
-            }));
+            }), true);
         });
 
         it('sets direction when START_SHAPE and direction is highlighted', () => {
@@ -62,7 +62,7 @@ describe('DrawingOp', () => {
                         highlightedDirection: null
                     })
                 })
-            }));
+            }), true);
         });
 
         it('restarts shape (resets) when START_SHAPE but no direction highlighted', () => {
@@ -75,7 +75,7 @@ describe('DrawingOp', () => {
 
             // It actually dispatches two events in the current implementation: RESET then START
             expect(Store.dispatch).toHaveBeenCalledTimes(2);
-            expect(Store.dispatch).toHaveBeenNthCalledWith(1, 'DRAW_RESET', expect.anything());
+            expect(Store.dispatch).toHaveBeenNthCalledWith(1, 'DRAW_RESET', expect.anything(), true);
             expect(Store.dispatch).toHaveBeenNthCalledWith(2, 'DRAW_START', expect.objectContaining({
                 ui: expect.objectContaining({
                     drawState: 'START_SHAPE',
@@ -83,7 +83,7 @@ describe('DrawingOp', () => {
                         points: [newMouse]
                     })
                 })
-            }));
+            }), true);
         });
 
         it('adds a point when DRAWING_LINE', () => {
@@ -101,7 +101,7 @@ describe('DrawingOp', () => {
                         points: [{ x: 0, y: 0, lengthToNext: 1 }, { x: 10, y: 0 }]
                     })
                 })
-            }));
+            }), true);
         });
 
         it('completes shape when DRAWING_LINE and snapTarget exists', () => {
@@ -123,7 +123,7 @@ describe('DrawingOp', () => {
                     drawState: 'IDLE',
                     mode: 'SELECT'
                 })
-            }));
+            }), true);
         });
     });
 

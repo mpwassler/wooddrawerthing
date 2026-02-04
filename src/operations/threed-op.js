@@ -75,16 +75,21 @@ export const ThreedOp = {
                 });
             }
         } else {
-            // Clicked empty space
-            if (!renderer3D.transformControls.dragging) {
-                renderer3D.transformControls.detach();
-                Store.dispatch('DESELECT_3D', {
-                    ui: { 
-                        selectedAssemblyId: null,
-                        selectedShapeId: null
-                    }
-                });
+            // Check if we clicked the Gizmo
+            // We raycast against the transform controls to see if we are interacting with it
+            const gizmoIntersects = raycaster.intersectObjects(renderer3D.transformControls.children, true);
+            if (gizmoIntersects.length > 0) {
+                return; // Let the gizmo handle it
             }
+
+            // Clicked empty space
+            renderer3D.transformControls.detach();
+            Store.dispatch('DESELECT_3D', {
+                ui: { 
+                    selectedAssemblyId: null,
+                    selectedShapeId: null
+                }
+            });
         }
     },
 
@@ -125,7 +130,7 @@ export const ThreedOp = {
             const group = renderer3D.extrudedMeshes.find(g => g.userData.shapeId === shape.id);
             
             if (group) {
-                const centroid = Geometry.calculateCentroid(shape.points);
+                const centroid = Geometry.calculateBoundingCenter(shape.points);
                 
                 const newTransform = {
                     position: {

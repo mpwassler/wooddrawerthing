@@ -18,6 +18,7 @@ import { ProjectOp } from '../operations/project-op.js';
 import { ShapeModel } from '../core/model.js';
 import { DOMRenderer } from './dom-renderer.js';
 import { ThreedOp } from '../operations/threed-op.js';
+import { Store } from '../core/store.js';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -186,9 +187,9 @@ export const Input = {
                 setTimeout(() => { Input.ignoreNextClick = false; }, 100);
             }
             Input.isPanningInteraction = false;
+            ViewportOp.stopPanning();
         }
         
-        ViewportOp.stopPanning();
         DOM.canvas.style.cursor = ui.mode === 'DRAW' ? 'crosshair' : 'default';
     },
     
@@ -202,6 +203,12 @@ export const Input = {
         if (e.repeat) return;
         // Ignore if typing in an input
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+            Store.undo();
+            e.preventDefault();
+            return;
+        }
 
         if (e.key === ' ') {
             e.preventDefault();

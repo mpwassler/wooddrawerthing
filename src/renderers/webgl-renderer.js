@@ -299,7 +299,7 @@ export class WebGLRenderer {
                 group.userData.lastModified = shapeData.lastModified;
 
                 const shape = new THREE.Shape();
-                const centroid = Geometry.calculateCentroid(shapeData.points);
+                const centroid = Geometry.calculateBoundingCenter(shapeData.points);
                 const cx = centroid.x, cy = centroid.y;
 
                 shape.moveTo(shapeData.points[0].x - cx, shapeData.points[0].y - cy);
@@ -449,7 +449,7 @@ export class WebGLRenderer {
             } // End Rebuild
 
             // Update Transform (Always)
-            const centroid = Geometry.calculateCentroid(shapeData.points);
+            const centroid = Geometry.calculateBoundingCenter(shapeData.points);
             const cx = centroid.x, cy = centroid.y;
             const t3d = shapeData.transform3D || { position: {x:0, y:0, z:0}, rotation: {x:0, y:0, z:0} };
             
