@@ -52,7 +52,7 @@ jobs:
           BUCKET_NAME=$(terraform output -raw bucket_name)
           echo "Deploying to $BUCKET_NAME..."
           
-          # Sync www/ folder to S3
-          aws s3 sync ../www s3://$BUCKET_NAME --delete
+          # Sync ../ folder to S3
+          aws s3 sync ../. s3://$BUCKET_NAME --delete
           
           echo "::notice::Website URL: http://$BUCKET_NAME.s3-website-${{ secrets.AWS_REGION }}.amazonaws.com"
