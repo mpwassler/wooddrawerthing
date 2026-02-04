@@ -93,26 +93,40 @@ export const Geometry = {
     /** Parses measurement string (e.g., "1' 2 1/2") to decimal inches */
     parseMeasurement: (str) => {
         str = str.trim();
-        const feetInches = /(\d+)'(?:\s*(\d+)?(?:\s*(\d+)\/(\d+))?)?"?/;
-        const inchesOnly = /(\d+)?(?:\s*(\d+)\/(\d+))?"?/;
+        if (!str) return null;
         
-        let m = str.match(feetInches);
-        if (m) {
-            const ft = parseInt(m[1] || 0, 10);
-            const inch = parseInt(m[2] || 0, 10);
-            const num = parseInt(m[3] || 0, 10);
-            const den = parseInt(m[4] || 1, 10);
+        // 1. Check for Feet-based format: 1' 2 1/2"
+        const feetMatch = str.match(/^(\d+)'(?:\s*(\d+)?(?:\s*(\d+)\/(\d+))?)?"?$/);
+        if (feetMatch) {
+            const ft = parseInt(feetMatch[1], 10);
+            const inch = parseInt(feetMatch[2] || 0, 10);
+            const num = parseInt(feetMatch[3] || 0, 10);
+            const den = parseInt(feetMatch[4] || 1, 10);
             return (ft * 12) + inch + (num / den);
         }
-        m = str.match(inchesOnly);
-        if (m && (m[1] || m[2])) {
-            const inch = parseInt(m[1] || 0, 10);
-            const num = parseInt(m[2] || 0, 10);
-            const den = parseInt(m[3] || 1, 10);
+
+        // 2. Check for Mixed Inches: 1 1/2"
+        const mixedMatch = str.match(/^(\d+)\s+(\d+)\/(\d+)"?$/);
+        if (mixedMatch) {
+            const inch = parseInt(mixedMatch[1], 10);
+            const num = parseInt(mixedMatch[2], 10);
+            const den = parseInt(mixedMatch[3], 10);
             return inch + (num / den);
         }
-        const flt = parseFloat(str.replace(/["']/g, ''));
-        return isNaN(flt) ? null : flt;
+
+        // 3. Check for Pure Fraction: 1/2"
+        const fractionMatch = str.match(/^(\d+)\/(\d+)"?$/);
+        if (fractionMatch) {
+            return parseInt(fractionMatch[1], 10) / parseInt(fractionMatch[2], 10);
+        }
+
+        // 4. Check for Plain Integer/Decimal: 12" or 12.5"
+        const plainMatch = str.match(/^(\d+(?:\.\d+)?)"?$/);
+        if (plainMatch) {
+            return parseFloat(plainMatch[1]);
+        }
+
+        return null;
     },
 
     /**

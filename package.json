@@ -1,0 +1,25 @@
+{
+  "name": "blueprints",
+  "version": "1.0.0",
+  "description": "A professional-grade (this is a stretch), browser-based CAD tool for woodworking. Designed for 2D drafting with multi-side joinery modeling and seamless 3D assembly visualization.",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mpwassler/wooddrawerthing.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mpwassler/wooddrawerthing/issues"
+  },
+  "homepage": "https://github.com/mpwassler/wooddrawerthing#readme",
+  "type": "module",
+  "devDependencies": {
+    "happy-dom": "^20.5.0",
+    "vitest": "^4.0.18"
+  }
+}

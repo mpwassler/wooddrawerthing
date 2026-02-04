@@ -32,7 +32,7 @@ export const Store = {
     handleUpdate: (e) => {
         const { action, payload } = e.detail;
         
-        console.log(`[Store] Action: ${action}`, payload);
+        //console.log(`[Store] Action: ${action}`, payload);
 
         // 1. Merge State (Deep Merge simplified)
         if (payload.ui) {
@@ -46,7 +46,7 @@ export const Store = {
         // 2. React to Changes (The "Render Loop")
         
         // Update UI Panels
-        if (payload.ui && payload.ui.selectedShapeId !== undefined) {
+        if ((payload.ui && payload.ui.selectedShapeId !== undefined) || action === 'SHAPE_THICKNESS_DRAG') {
             DOMRenderer.updatePropertiesPanel(STATE.selectedShape);
         }
         
