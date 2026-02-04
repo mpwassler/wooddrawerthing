@@ -62,6 +62,39 @@ export const ThreedOp = {
             }
 
             if (obj && obj.userData.shapeId) {
+                let targetId = obj.userData.shapeId;
+
+                // --- 3D CLONE LOGIC ---
+                if (e.ctrlKey || e.metaKey) {
+                    const originalShape = STATE.document.shapes.find(s => s.id === targetId);
+                    if (originalShape) {
+                        const newId = Math.random().toString(36).substr(2, 9);
+                        const newShape = structuredClone(originalShape);
+                        newShape.id = newId;
+                        newShape.name = `${originalShape.name} (Copy)`;
+                        newShape.lastModified = Date.now();
+                        
+                        // Slightly offset the clone so it's visible if not moved
+                        if (newShape.transform3D) {
+                            newShape.transform3D.position.x += 10;
+                            newShape.transform3D.position.y += 10;
+                        }
+                        // ALSO offset 2D points so it reflects in 2D scene
+                        newShape.points = newShape.points.map(p => ({ ...p, x: p.x + 10, y: p.y + 10 }));
+
+                        Store.dispatch('SHAPE_ADD_3D', {
+                            document: { shapes: [...STATE.document.shapes, newShape] },
+                            ui: { selectedAssemblyId: newId, selectedShapeId: newId }
+                        }, true);
+                        
+                        // We need to wait for the next render to attach to the NEW object
+                        // but since we are in a synchronous event, we'll let the next
+                        // click or the store update handle the attachment.
+                        // For immediate feedback, we can't easily attach to a non-existent mesh.
+                        return; 
+                    }
+                }
+
                 // Attach the gizmo
                 renderer3D.transformControls.attach(obj);
                 

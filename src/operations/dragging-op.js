@@ -25,6 +25,28 @@ export const DraggingOp = {
             const dx = mouseWorld.x - dragging.lastPos.x;
             const dy = mouseWorld.y - dragging.lastPos.y;
             
+            if (dragging.isCloneMode) {
+                // CLONE LOGIC
+                const newId = Math.random().toString(36).substr(2, 9);
+                const newShape = structuredClone(shape);
+                newShape.id = newId;
+                newShape.name = `${shape.name} (Copy)`;
+                newShape.lastModified = Date.now();
+                
+                // Shift points by the initial delta
+                newShape.points = newShape.points.map(p => ({ ...p, x: p.x + dx, y: p.y + dy }));
+                
+                Store.dispatch('SHAPE_ADD', {
+                    document: { shapes: [...STATE.document.shapes, newShape] },
+                    ui: { 
+                        selectedShapeId: newId,
+                        dragging: { ...dragging, item: newShape, isCloneMode: false, lastPos: { ...mouseWorld } }
+                    }
+                }, true);
+                return;
+            }
+
+            // REGULAR MOVE LOGIC
             // Clone points and update
             const newPoints = shape.points.map(p => ({ x: p.x + dx, y: p.y + dy, lengthToNext: p.lengthToNext }));
             

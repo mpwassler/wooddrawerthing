@@ -114,7 +114,12 @@ export const Input = {
             
             // Then check for shape drag
             if (STATE.ui.hoveredShapeId) {
-                STATE.ui.dragging = { type: 'SHAPE', item: STATE.hoveredShape, lastPos: { ...mouseWorld } };
+                STATE.ui.dragging = { 
+                    type: 'SHAPE', 
+                    item: STATE.hoveredShape, 
+                    lastPos: { ...mouseWorld },
+                    isCloneMode: e.ctrlKey || e.metaKey 
+                };
                 DOM.canvas.style.cursor = 'move';
             }
         }
