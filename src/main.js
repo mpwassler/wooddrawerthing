@@ -56,6 +56,13 @@ async function init() {
         }
         Input.handleKeyDown(e);
     });
+    window.addEventListener('keyup', Input.handleKeyUp);
+    window.addEventListener('blur', () => {
+        STATE.ui.isSpacePressed = false;
+        if (STATE.ui.view.isPanning) {
+            Input.handleMouseUp({ clientX: 0, clientY: 0 }); // Force stop
+        }
+    });
     
     let throttleTimeout = null;
     window.addEventListener('mousemove', (e) => {

@@ -5,7 +5,7 @@
 
 import { STATE } from '../core/state.js';
 import { DOM } from '../core/dom.js';
-import { Geometry } from '../utils/geometry.js?v=5';
+import { Geometry } from '../utils/geometry.js';
 import { BooleanOps } from '../utils/boolean-ops.js';
 import { CONFIG } from '../core/config.js';
 import { ViewportOp } from '../operations/viewport-op.js';
@@ -45,6 +45,10 @@ export const Input = {
 
     // --- Canvas Routing ---
     handleCanvasClick: (e) => {
+        if (Input.ignoreNextClick) {
+            Input.ignoreNextClick = false;
+            return;
+        }
         if (e.button !== 0) return;
         
         if (STATE.ui.mode === 'DRAW') {
@@ -59,11 +63,14 @@ export const Input = {
 
     handleMouseDown: (e) => {
         if (!DOM.boolMenu.classList.contains('hidden')) Input.hideBooleanMenu();
+        
+        Input.mouseDownPos = { x: e.clientX, y: e.clientY };
+        Input.isPanningInteraction = false;
 
         // Panning Logic
         if (e.button === 1 || (e.button === 0 && STATE.ui.isSpacePressed)) {
+            Input.isPanningInteraction = true;
             ViewportOp.startPanning(e);
-            STATE.ui.view.isPanning = true; 
             if (STATE.ui.isSpacePressed) DOM.canvas.style.cursor = 'grabbing';
             return;
         }
@@ -169,8 +176,24 @@ export const Input = {
 
         ui.dragging.type = null;
         ui.dragging.item = null;
+        
+        if (Input.isPanningInteraction) {
+            const start = Input.mouseDownPos || STATE.ui.view.panStart;
+            const dist = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+            if (dist > CONFIG.CLICK_TOLERANCE_SCREEN_PX) {
+                Input.ignoreNextClick = true;
+                // Clear flag eventually just in case click doesn't fire
+                setTimeout(() => { Input.ignoreNextClick = false; }, 100);
+            }
+            Input.isPanningInteraction = false;
+        }
+        
         ViewportOp.stopPanning();
         DOM.canvas.style.cursor = ui.mode === 'DRAW' ? 'crosshair' : 'default';
+    },
+    
+    hideBooleanMenu: () => {
+        DOM.boolMenu.classList.add('hidden');
     },
 
     handleWheel: (e) => ViewportOp.handleZoom(e),
@@ -181,6 +204,7 @@ export const Input = {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
         if (e.key === ' ') {
+            e.preventDefault();
             STATE.ui.isSpacePressed = true;
             if (!STATE.ui.view.isPanning) DOM.canvas.style.cursor = 'grab';
         }

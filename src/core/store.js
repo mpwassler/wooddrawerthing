@@ -32,7 +32,7 @@ export const Store = {
     handleUpdate: (e) => {
         const { action, payload } = e.detail;
         
-        //console.log(`[Store] Action: ${action}`, payload);
+        console.log(`[Store] Action: ${action}`, payload);
 
         // 1. Merge State (Deep Merge simplified)
         if (payload.ui) {
