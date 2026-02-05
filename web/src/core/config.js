@@ -10,6 +10,7 @@ export const CONFIG = {
         SHAPE_DEFAULT: '#333333',
         SHAPE_SELECTED: '#007bff',
         SHAPE_HOVER: '#6c757d',
+        SHAPE_EDGE_HOVER: '#ff8f00',
         SHAPE_FILL: 'rgba(224, 192, 151, 0.5)',
         SHAPE_FILL_SELECTED: 'rgba(0, 123, 255, 0.1)',
         GUIDE_LINE: '#007bff',

@@ -49,6 +49,9 @@ export const STATE = {
             alignmentGuide: null
         },
 
+        hoveredEdgeIndex: null,
+        hoveredEdgeShapeId: null,
+
         dragging: {
             type: null, // 'SHAPE' | 'EDGE' | 'JOINERY' | 'THICKNESS'
             item: null, // Reference or ID

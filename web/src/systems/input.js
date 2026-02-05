@@ -175,6 +175,17 @@ export const Input = {
             ViewportOp.updatePanning(e);
         } else if (STATE.ui.dragging.type) {
             DraggingOp.update(mouseWorld, mouseScreen);
+        } else if (STATE.ui.mode === 'PULL') {
+            const shape = STATE.selectedShape;
+            if (shape && shape.closed) {
+                const toleranceWorld = (12 / STATE.ui.view.zoom);
+                const edgeIndex = Input.findEdgeHit(shape, mouseWorld, toleranceWorld);
+                STATE.ui.hoveredEdgeIndex = edgeIndex;
+                STATE.ui.hoveredEdgeShapeId = edgeIndex !== null ? shape.id : null;
+            } else {
+                STATE.ui.hoveredEdgeIndex = null;
+                STATE.ui.hoveredEdgeShapeId = null;
+            }
         } else if (STATE.ui.mode === 'DRAW') {
             DrawingOp.updatePreview(mouseWorld, mouseScreen);
         } else {
@@ -448,6 +459,8 @@ export const Input = {
         STATE.ui.mode = mode; // 'DRAW' | 'SELECT' | 'PULL'
         STATE.ui.drawState = 'IDLE';
         STATE.ui.activeDrawing.points = [];
+        STATE.ui.hoveredEdgeIndex = null;
+        STATE.ui.hoveredEdgeShapeId = null;
         
         DOM.btnModeDraw.classList.toggle('active', mode === 'DRAW');
         DOM.btnModeSelect.classList.toggle('active', mode === 'SELECT');
