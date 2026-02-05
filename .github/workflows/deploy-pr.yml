@@ -54,7 +54,7 @@ jobs:
           WEBSITE_URL=$(terraform output -raw website_url)
           
           echo "Deploying to $BUCKET_NAME..."
-          aws s3 sync ../www s3://$BUCKET_NAME --delete
+          aws s3 sync ../web s3://$BUCKET_NAME --delete
           
           echo "WEBSITE_URL=$WEBSITE_URL" >> $GITHUB_ENV
 

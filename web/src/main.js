@@ -47,6 +47,13 @@ async function init() {
     DOM.canvas.addEventListener('click', Input.handleCanvasClick);
     DOM.canvas.addEventListener('mousedown', Input.handleMouseDown);
     DOM.canvas.addEventListener('wheel', Input.handleWheel);
+    DOM.canvas.addEventListener('contextmenu', Input.handleContextMenu);
+
+    // Context Menu Buttons
+    DOM.presetButtons.forEach(btn => {
+        btn.addEventListener('click', Input.handleAddPreset);
+    });
+    DOM.btnClosePresetMenu.addEventListener('click', Input.hidePresetMenu);
 
     // 3D Specific events
     DOM.canvas3D.addEventListener('mousedown', ThreedOp.handleMouseDown);

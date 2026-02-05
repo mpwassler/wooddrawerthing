@@ -391,6 +391,25 @@ button.disabled {
     color: #000;
 }
 
+/* Context Menu Buttons */
+.preset-btn {
+    background: white;
+    color: #333;
+    border: 1px solid #ddd;
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 0.9em;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.preset-btn:hover {
+    background: #f0f7ff;
+    border-color: #007bff;
+    color: #007bff;
+}
+
 /* Utility */
 .hidden {
     display: none !important;

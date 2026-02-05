@@ -53,6 +53,6 @@ jobs:
           echo "Deploying to $BUCKET_NAME..."
           
           # Sync ../ folder to S3
-          aws s3 sync ../. s3://$BUCKET_NAME --delete
+          aws s3 sync ../web s3://$BUCKET_NAME --delete
           
           echo "::notice::Website URL: http://$BUCKET_NAME.s3-website-${{ secrets.AWS_REGION }}.amazonaws.com"
