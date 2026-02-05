@@ -29,7 +29,10 @@ vi.mock('../operations/viewport-op.js', () => ({
 
 vi.mock('../core/store.js', () => ({
     Store: {
-        dispatch: vi.fn(),
+        dispatch: vi.fn((action, payload) => {
+            if (payload?.ui) Object.assign(STATE.ui, payload.ui);
+            if (payload?.document) Object.assign(STATE.document, payload.document);
+        }),
         undo: vi.fn(),
         init: vi.fn()
     }

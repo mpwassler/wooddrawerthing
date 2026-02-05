@@ -162,12 +162,16 @@ export const Input = {
                 if (STATE.ui.selectedShapeId !== shape.id) {
                     Store.dispatch('SELECT_SHAPE', { ui: { selectedShapeId: shape.id } });
                 }
-                STATE.ui.dragging = {
-                    type: 'EDGE',
-                    item: shape,
-                    edgeIndex,
-                    lastPos: { ...mouseWorld }
-                };
+                Store.dispatch('EDGE_DRAG_START', {
+                    ui: {
+                        dragging: {
+                            type: 'EDGE',
+                            item: shape,
+                            edgeIndex,
+                            lastPos: { ...mouseWorld }
+                        }
+                    }
+                });
                 DOM.canvas.style.cursor = 'move';
             }
         }
@@ -192,9 +196,13 @@ export const Input = {
         } else if (STATE.ui.mode === 'PULL') {
             const toleranceWorld = (12 / STATE.ui.view.zoom);
             const hoveredEdge = Input.findHoveredEdge(mouseWorld, toleranceWorld);
-            STATE.ui.hoveredEdgeIndex = hoveredEdge ? hoveredEdge.edgeIndex : null;
-            STATE.ui.hoveredEdgeShapeId = hoveredEdge ? hoveredEdge.shape.id : null;
-            if (STATE.ui.hoveredEdgeIndex !== null) {
+            Store.dispatch('PULL_HOVER_UPDATE', {
+                ui: {
+                    hoveredEdgeIndex: hoveredEdge ? hoveredEdge.edgeIndex : null,
+                    hoveredEdgeShapeId: hoveredEdge ? hoveredEdge.shape.id : null
+                }
+            });
+            if (hoveredEdge) {
                 DOM.canvas.style.cursor = 'move';
             } else {
                 DOM.canvas.style.cursor = 'default';
