@@ -131,11 +131,15 @@ export const ViewController = {
     _drawShapeStandard: (r, shape, isSelected, isHovered, zoom) => {
         const color = isSelected ? CONFIG.COLORS.SHAPE_SELECTED : (isHovered ? CONFIG.COLORS.SHAPE_HOVER : CONFIG.COLORS.SHAPE_DEFAULT);
         const lineWidth = (isSelected || isHovered ? 3 : 2) / zoom;
+        const hoverEdgeActive = STATE.ui.mode === 'PULL'
+            && STATE.ui.hoveredEdgeShapeId === shape.id
+            && STATE.ui.hoveredEdgeIndex !== null;
         if (shape.closed && shape.points.length > 2) r.drawPolygon(shape.points, isSelected ? CONFIG.COLORS.SHAPE_FILL_SELECTED : CONFIG.COLORS.SHAPE_FILL);
         for (let i = 0; i < shape.points.length; i++) {
             const p1 = shape.points[i], p2 = shape.points[(i + 1) % shape.points.length];
             if (!shape.closed && i === shape.points.length - 1) continue;
-            r.drawLine(p1, p2, color, lineWidth);
+            const isHoveredEdge = hoverEdgeActive && i === STATE.ui.hoveredEdgeIndex;
+            r.drawLine(p1, p2, isHoveredEdge ? CONFIG.COLORS.SHAPE_EDGE_HOVER : color, isHoveredEdge ? 4 / zoom : lineWidth);
         }
     },
 

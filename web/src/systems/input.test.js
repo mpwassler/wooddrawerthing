@@ -29,7 +29,10 @@ vi.mock('../operations/viewport-op.js', () => ({
 
 vi.mock('../core/store.js', () => ({
     Store: {
-        dispatch: vi.fn(),
+        dispatch: vi.fn((action, payload) => {
+            if (payload?.ui) Object.assign(STATE.ui, payload.ui);
+            if (payload?.document) Object.assign(STATE.document, payload.document);
+        }),
         undo: vi.fn(),
         init: vi.fn()
     }
@@ -45,6 +48,7 @@ vi.mock('../core/dom.js', () => ({
         propPanel: { classList: { add: vi.fn() } },
         btnModeDraw: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
         btnModeSelect: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
+        btnModePull: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
         btnView2D: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
         btnView3D: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
         btnResetCam: { addEventListener: vi.fn() },
@@ -207,6 +211,60 @@ describe('Input System', () => {
                     ])
                 })
             }), true);
+        });
+    });
+
+    describe('Pull Mode', () => {
+        it('should track the hovered edge while in pull mode', () => {
+            STATE.ui.mode = 'PULL';
+            const shape = {
+                id: 'shape-1',
+                closed: true,
+                points: [
+                    { x: 0, y: 0 },
+                    { x: 100, y: 0 },
+                    { x: 100, y: 50 },
+                    { x: 0, y: 50 }
+                ]
+            };
+            STATE.document.projects = [{ id: 'p1', shapes: [shape] }];
+            STATE.document.currentProjectId = 'p1';
+            STATE.ui.view.zoom = 1;
+            STATE.ui.view.pan = { x: 0, y: 0 };
+
+            Input.handleMouseMove({ clientX: 50, clientY: 3 });
+
+            expect(STATE.ui.hoveredEdgeShapeId).toBe('shape-1');
+            expect(STATE.ui.hoveredEdgeIndex).toBe(0);
+        });
+
+        it('should start edge dragging and select the hovered shape', () => {
+            STATE.ui.mode = 'PULL';
+            const shape = {
+                id: 'shape-2',
+                closed: true,
+                points: [
+                    { x: 0, y: 0 },
+                    { x: 80, y: 0 },
+                    { x: 80, y: 40 },
+                    { x: 0, y: 40 }
+                ]
+            };
+            STATE.document.projects = [{ id: 'p1', shapes: [shape] }];
+            STATE.document.currentProjectId = 'p1';
+            STATE.ui.view.zoom = 1;
+            STATE.ui.view.pan = { x: 0, y: 0 };
+
+            Input.handleMouseDown({ button: 0, clientX: 40, clientY: 2 });
+
+            expect(Store.dispatch).toHaveBeenCalledWith('SELECT_SHAPE', {
+                ui: { selectedShapeId: 'shape-2' }
+            });
+            expect(STATE.ui.dragging).toEqual(expect.objectContaining({
+                type: 'EDGE',
+                item: shape,
+                edgeIndex: 0
+            }));
         });
     });
 });

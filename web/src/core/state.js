@@ -22,7 +22,7 @@ export const STATE = {
 
     // --- UI & View State (Transient) ---
     ui: {
-        mode: 'DRAW',   // 'DRAW' | 'SELECT'
+        mode: 'DRAW',   // 'DRAW' | 'SELECT' | 'PULL'
         activeTool3D: 'SELECT', // 'SELECT' | 'SLICE'
         drawState: 'IDLE', // 'IDLE' | 'START_SHAPE' | 'DRAWING_LINE'
         is3DOpen: false,
@@ -49,8 +49,11 @@ export const STATE = {
             alignmentGuide: null
         },
 
+        hoveredEdgeIndex: null,
+        hoveredEdgeShapeId: null,
+
         dragging: {
-            type: null, // 'SHAPE' | 'JOINERY' | 'THICKNESS'
+            type: null, // 'SHAPE' | 'EDGE' | 'JOINERY' | 'THICKNESS'
             item: null, // Reference or ID
             startPos: { x: 0, y: 0 },
             offset: { x: 0, y: 0 }

@@ -33,6 +33,32 @@ export const Input = {
         if (!shape || !shape.faceData) return { tenons: [], cutouts: [] };
         return shape.faceData[shape.activeFace || 'FRONT'] || { tenons: [], cutouts: [] };
     },
+    findEdgeHit: (shape, mouseWorld, toleranceWorld) => {
+        if (!shape || !shape.closed || shape.points.length < 2) return null;
+        let bestIdx = null;
+        let bestDist = Infinity;
+        for (let i = 0; i < shape.points.length; i++) {
+            const p1 = shape.points[i];
+            const p2 = shape.points[(i + 1) % shape.points.length];
+            const closest = Geometry.closestPointOnSegment(mouseWorld, p1, p2);
+            const dist = Geometry.dist(mouseWorld, closest);
+            if (dist < toleranceWorld && dist < bestDist) {
+                bestDist = dist;
+                bestIdx = i;
+            }
+        }
+        return bestIdx !== null ? bestIdx : null;
+    },
+    findHoveredEdge: (mouseWorld, toleranceWorld) => {
+        for (let i = STATE.document.shapes.length - 1; i >= 0; i--) {
+            const shape = STATE.document.shapes[i];
+            const edgeIndex = Input.findEdgeHit(shape, mouseWorld, toleranceWorld);
+            if (edgeIndex !== null) {
+                return { shape, edgeIndex };
+            }
+        }
+        return null;
+    },
 
     updateJSONExport: () => {
         const shape = STATE.selectedShape;
@@ -56,6 +82,8 @@ export const Input = {
             const mouseWorld = Geometry.screenToWorld({ x: e.clientX, y: e.clientY }, STATE.ui.view);
             const mouseScreen = { x: e.clientX, y: e.clientY };
             DrawingOp.handleDrawClick(mouseWorld, mouseScreen);
+        } else if (STATE.ui.mode === 'PULL') {
+            return;
         } else {
             SelectionOp.handleSelect(e.ctrlKey);
             DOMRenderer.updatePropertiesPanel(STATE.selectedShape);
@@ -124,6 +152,29 @@ export const Input = {
                 DOM.canvas.style.cursor = 'move';
             }
         }
+
+        if (e.button === 0 && STATE.ui.mode === 'PULL') {
+            // Check for edge drag on selected shape
+            const toleranceWorld = (12 / STATE.ui.view.zoom);
+            const hoveredEdge = Input.findHoveredEdge(mouseWorld, toleranceWorld);
+            if (hoveredEdge) {
+                const { shape, edgeIndex } = hoveredEdge;
+                if (STATE.ui.selectedShapeId !== shape.id) {
+                    Store.dispatch('SELECT_SHAPE', { ui: { selectedShapeId: shape.id } });
+                }
+                Store.dispatch('EDGE_DRAG_START', {
+                    ui: {
+                        dragging: {
+                            type: 'EDGE',
+                            item: shape,
+                            edgeIndex,
+                            lastPos: { ...mouseWorld }
+                        }
+                    }
+                });
+                DOM.canvas.style.cursor = 'move';
+            }
+        }
     },
     
     // ... (keep MouseMove, MouseUp, Wheel, Keys as is) ...
@@ -142,6 +193,20 @@ export const Input = {
             ViewportOp.updatePanning(e);
         } else if (STATE.ui.dragging.type) {
             DraggingOp.update(mouseWorld, mouseScreen);
+        } else if (STATE.ui.mode === 'PULL') {
+            const toleranceWorld = (12 / STATE.ui.view.zoom);
+            const hoveredEdge = Input.findHoveredEdge(mouseWorld, toleranceWorld);
+            Store.dispatch('PULL_HOVER_UPDATE', {
+                ui: {
+                    hoveredEdgeIndex: hoveredEdge ? hoveredEdge.edgeIndex : null,
+                    hoveredEdgeShapeId: hoveredEdge ? hoveredEdge.shape.id : null
+                }
+            });
+            if (hoveredEdge) {
+                DOM.canvas.style.cursor = 'move';
+            } else {
+                DOM.canvas.style.cursor = 'default';
+            }
         } else if (STATE.ui.mode === 'DRAW') {
             DrawingOp.updatePreview(mouseWorld, mouseScreen);
         } else {
@@ -177,6 +242,9 @@ export const Input = {
                 }
             }
             DocumentOp.updateJSONExport();
+        } else if (ui.dragging.type === 'EDGE') {
+            DocumentOp.updateJSONExport();
+            ProjectOp.calculateTotalBoardFeet();
         } else if (ui.dragging.type === 'JOINERY') {
             DocumentOp.updateJSONExport();
         }
@@ -409,12 +477,15 @@ export const Input = {
     },
 
     switchTool: (mode) => {
-        STATE.ui.mode = mode; // 'DRAW' or 'SELECT'
+        STATE.ui.mode = mode; // 'DRAW' | 'SELECT' | 'PULL'
         STATE.ui.drawState = 'IDLE';
         STATE.ui.activeDrawing.points = [];
+        STATE.ui.hoveredEdgeIndex = null;
+        STATE.ui.hoveredEdgeShapeId = null;
         
         DOM.btnModeDraw.classList.toggle('active', mode === 'DRAW');
         DOM.btnModeSelect.classList.toggle('active', mode === 'SELECT');
+        DOM.btnModePull.classList.toggle('active', mode === 'PULL');
         DOM.canvas.style.cursor = mode === 'DRAW' ? 'crosshair' : 'default';
     },
 

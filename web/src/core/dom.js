@@ -9,6 +9,7 @@ export const DOM = {
     totalBoardFeet: document.getElementById('total-board-feet'),
     btnModeDraw: document.getElementById('draw-mode-btn'),
     btnModeSelect: document.getElementById('select-mode-btn'),
+    btnModePull: document.getElementById('pull-mode-btn'),
     btnView2D: document.getElementById('view-2d-btn'),
     btnView3D: document.getElementById('view-3d-btn'),
     
