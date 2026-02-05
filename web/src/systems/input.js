@@ -128,8 +128,21 @@ export const Input = {
                     return;
                 }
             }
+            
+            // Then check for shape drag
+            if (STATE.ui.hoveredShapeId) {
+                STATE.ui.dragging = { 
+                    type: 'SHAPE', 
+                    item: STATE.hoveredShape, 
+                    lastPos: { ...mouseWorld },
+                    isCloneMode: e.ctrlKey || e.metaKey 
+                };
+                DOM.canvas.style.cursor = 'move';
+            }
+        }
 
-            // Then check for edge drag on selected shape
+        if (e.button === 0 && STATE.ui.mode === 'PULL') {
+            // Check for edge drag on selected shape
             if (STATE.selectedShape && STATE.selectedShape.closed) {
                 const toleranceWorld = (12 / STATE.ui.view.zoom);
                 const edgeIndex = Input.findEdgeHit(STATE.selectedShape, mouseWorld, toleranceWorld);
@@ -141,19 +154,7 @@ export const Input = {
                         lastPos: { ...mouseWorld }
                     };
                     DOM.canvas.style.cursor = 'move';
-                    return;
                 }
-            }
-            
-            // Then check for shape drag
-            if (STATE.ui.hoveredShapeId) {
-                STATE.ui.dragging = { 
-                    type: 'SHAPE', 
-                    item: STATE.hoveredShape, 
-                    lastPos: { ...mouseWorld },
-                    isCloneMode: e.ctrlKey || e.metaKey 
-                };
-                DOM.canvas.style.cursor = 'move';
             }
         }
     },
@@ -444,12 +445,13 @@ export const Input = {
     },
 
     switchTool: (mode) => {
-        STATE.ui.mode = mode; // 'DRAW' or 'SELECT'
+        STATE.ui.mode = mode; // 'DRAW' | 'SELECT' | 'PULL'
         STATE.ui.drawState = 'IDLE';
         STATE.ui.activeDrawing.points = [];
         
         DOM.btnModeDraw.classList.toggle('active', mode === 'DRAW');
         DOM.btnModeSelect.classList.toggle('active', mode === 'SELECT');
+        DOM.btnModePull.classList.toggle('active', mode === 'PULL');
         DOM.canvas.style.cursor = mode === 'DRAW' ? 'crosshair' : 'default';
     },
 

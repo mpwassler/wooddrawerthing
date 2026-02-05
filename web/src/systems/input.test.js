@@ -45,6 +45,7 @@ vi.mock('../core/dom.js', () => ({
         propPanel: { classList: { add: vi.fn() } },
         btnModeDraw: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
         btnModeSelect: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
+        btnModePull: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
         btnView2D: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
         btnView3D: { addEventListener: vi.fn(), classList: { toggle: vi.fn() } },
         btnResetCam: { addEventListener: vi.fn() },

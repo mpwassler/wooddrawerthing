@@ -95,6 +95,7 @@ async function init() {
     // Event Listeners
     DOM.btnModeDraw.addEventListener('click', () => Input.switchTool('DRAW'));
     DOM.btnModeSelect.addEventListener('click', () => Input.switchTool('SELECT'));
+    DOM.btnModePull.addEventListener('click', () => Input.switchTool('PULL'));
     
     DOM.btnView2D.addEventListener('click', () => Input.switchView('2D'));
     DOM.btnView3D.addEventListener('click', () => Input.switchView('3D'));
