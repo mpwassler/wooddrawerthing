@@ -82,6 +82,8 @@ export const Input = {
             const mouseWorld = Geometry.screenToWorld({ x: e.clientX, y: e.clientY }, STATE.ui.view);
             const mouseScreen = { x: e.clientX, y: e.clientY };
             DrawingOp.handleDrawClick(mouseWorld, mouseScreen);
+        } else if (STATE.ui.mode === 'PULL') {
+            return;
         } else {
             SelectionOp.handleSelect(e.ctrlKey);
             DOMRenderer.updatePropertiesPanel(STATE.selectedShape);
@@ -192,6 +194,11 @@ export const Input = {
             const hoveredEdge = Input.findHoveredEdge(mouseWorld, toleranceWorld);
             STATE.ui.hoveredEdgeIndex = hoveredEdge ? hoveredEdge.edgeIndex : null;
             STATE.ui.hoveredEdgeShapeId = hoveredEdge ? hoveredEdge.shape.id : null;
+            if (STATE.ui.hoveredEdgeIndex !== null) {
+                DOM.canvas.style.cursor = 'move';
+            } else {
+                DOM.canvas.style.cursor = 'default';
+            }
         } else if (STATE.ui.mode === 'DRAW') {
             DrawingOp.updatePreview(mouseWorld, mouseScreen);
         } else {
