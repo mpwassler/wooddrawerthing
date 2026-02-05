@@ -226,7 +226,6 @@ describe('Input System', () => {
             };
             STATE.document.projects = [{ id: 'p1', shapes: [shape] }];
             STATE.document.currentProjectId = 'p1';
-            STATE.ui.selectedShapeId = 'shape-1';
             STATE.ui.view.zoom = 1;
             STATE.ui.view.pan = { x: 0, y: 0 };
 
@@ -234,6 +233,35 @@ describe('Input System', () => {
 
             expect(STATE.ui.hoveredEdgeShapeId).toBe('shape-1');
             expect(STATE.ui.hoveredEdgeIndex).toBe(0);
+        });
+
+        it('should start edge dragging and select the hovered shape', () => {
+            STATE.ui.mode = 'PULL';
+            const shape = {
+                id: 'shape-2',
+                closed: true,
+                points: [
+                    { x: 0, y: 0 },
+                    { x: 80, y: 0 },
+                    { x: 80, y: 40 },
+                    { x: 0, y: 40 }
+                ]
+            };
+            STATE.document.projects = [{ id: 'p1', shapes: [shape] }];
+            STATE.document.currentProjectId = 'p1';
+            STATE.ui.view.zoom = 1;
+            STATE.ui.view.pan = { x: 0, y: 0 };
+
+            Input.handleMouseDown({ button: 0, clientX: 40, clientY: 2 });
+
+            expect(Store.dispatch).toHaveBeenCalledWith('SELECT_SHAPE', {
+                ui: { selectedShapeId: 'shape-2' }
+            });
+            expect(STATE.ui.dragging).toEqual(expect.objectContaining({
+                type: 'EDGE',
+                item: shape,
+                edgeIndex: 0
+            }));
         });
     });
 });

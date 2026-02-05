@@ -49,6 +49,16 @@ export const Input = {
         }
         return bestIdx !== null ? bestIdx : null;
     },
+    findHoveredEdge: (mouseWorld, toleranceWorld) => {
+        for (let i = STATE.document.shapes.length - 1; i >= 0; i--) {
+            const shape = STATE.document.shapes[i];
+            const edgeIndex = Input.findEdgeHit(shape, mouseWorld, toleranceWorld);
+            if (edgeIndex !== null) {
+                return { shape, edgeIndex };
+            }
+        }
+        return null;
+    },
 
     updateJSONExport: () => {
         const shape = STATE.selectedShape;
@@ -143,18 +153,20 @@ export const Input = {
 
         if (e.button === 0 && STATE.ui.mode === 'PULL') {
             // Check for edge drag on selected shape
-            if (STATE.selectedShape && STATE.selectedShape.closed) {
-                const toleranceWorld = (12 / STATE.ui.view.zoom);
-                const edgeIndex = Input.findEdgeHit(STATE.selectedShape, mouseWorld, toleranceWorld);
-                if (edgeIndex !== null) {
-                    STATE.ui.dragging = {
-                        type: 'EDGE',
-                        item: STATE.selectedShape,
-                        edgeIndex,
-                        lastPos: { ...mouseWorld }
-                    };
-                    DOM.canvas.style.cursor = 'move';
+            const toleranceWorld = (12 / STATE.ui.view.zoom);
+            const hoveredEdge = Input.findHoveredEdge(mouseWorld, toleranceWorld);
+            if (hoveredEdge) {
+                const { shape, edgeIndex } = hoveredEdge;
+                if (STATE.ui.selectedShapeId !== shape.id) {
+                    Store.dispatch('SELECT_SHAPE', { ui: { selectedShapeId: shape.id } });
                 }
+                STATE.ui.dragging = {
+                    type: 'EDGE',
+                    item: shape,
+                    edgeIndex,
+                    lastPos: { ...mouseWorld }
+                };
+                DOM.canvas.style.cursor = 'move';
             }
         }
     },
@@ -176,16 +188,10 @@ export const Input = {
         } else if (STATE.ui.dragging.type) {
             DraggingOp.update(mouseWorld, mouseScreen);
         } else if (STATE.ui.mode === 'PULL') {
-            const shape = STATE.selectedShape;
-            if (shape && shape.closed) {
-                const toleranceWorld = (12 / STATE.ui.view.zoom);
-                const edgeIndex = Input.findEdgeHit(shape, mouseWorld, toleranceWorld);
-                STATE.ui.hoveredEdgeIndex = edgeIndex;
-                STATE.ui.hoveredEdgeShapeId = edgeIndex !== null ? shape.id : null;
-            } else {
-                STATE.ui.hoveredEdgeIndex = null;
-                STATE.ui.hoveredEdgeShapeId = null;
-            }
+            const toleranceWorld = (12 / STATE.ui.view.zoom);
+            const hoveredEdge = Input.findHoveredEdge(mouseWorld, toleranceWorld);
+            STATE.ui.hoveredEdgeIndex = hoveredEdge ? hoveredEdge.edgeIndex : null;
+            STATE.ui.hoveredEdgeShapeId = hoveredEdge ? hoveredEdge.shape.id : null;
         } else if (STATE.ui.mode === 'DRAW') {
             DrawingOp.updatePreview(mouseWorld, mouseScreen);
         } else {

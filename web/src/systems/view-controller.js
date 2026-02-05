@@ -132,7 +132,6 @@ export const ViewController = {
         const color = isSelected ? CONFIG.COLORS.SHAPE_SELECTED : (isHovered ? CONFIG.COLORS.SHAPE_HOVER : CONFIG.COLORS.SHAPE_DEFAULT);
         const lineWidth = (isSelected || isHovered ? 3 : 2) / zoom;
         const hoverEdgeActive = STATE.ui.mode === 'PULL'
-            && isSelected
             && STATE.ui.hoveredEdgeShapeId === shape.id
             && STATE.ui.hoveredEdgeIndex !== null;
         if (shape.closed && shape.points.length > 2) r.drawPolygon(shape.points, isSelected ? CONFIG.COLORS.SHAPE_FILL_SELECTED : CONFIG.COLORS.SHAPE_FILL);
