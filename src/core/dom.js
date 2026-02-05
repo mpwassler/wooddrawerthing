@@ -38,6 +38,11 @@ export const DOM = {
     btnBoolSubtract: document.getElementById('bool-subtract-btn'),
     btnBoolCancel: document.getElementById('bool-cancel-btn'),
 
+    // Presets
+    boardPresetMenu: document.getElementById('board-preset-menu'),
+    presetButtons: document.querySelectorAll('.preset-btn'),
+    btnClosePresetMenu: document.getElementById('close-preset-menu'),
+
     // Projects
     projectList: document.getElementById('project-list'),
     btnAddProject: document.getElementById('add-project-btn'),

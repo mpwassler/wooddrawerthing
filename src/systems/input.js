@@ -64,6 +64,7 @@ export const Input = {
 
     handleMouseDown: (e) => {
         if (!DOM.boolMenu.classList.contains('hidden')) Input.hideBooleanMenu();
+        if (!DOM.boardPresetMenu.classList.contains('hidden')) Input.hidePresetMenu();
         
         Input.mouseDownPos = { x: e.clientX, y: e.clientY };
         Input.isPanningInteraction = false;
@@ -203,6 +204,56 @@ export const Input = {
     },
 
     handleWheel: (e) => ViewportOp.handleZoom(e),
+
+    handleContextMenu: (e) => {
+        e.preventDefault();
+        const menu = DOM.boardPresetMenu;
+        menu.classList.remove('hidden');
+        menu.style.left = `${e.clientX}px`;
+        menu.style.top = `${e.clientY}px`;
+        
+        // Store the world position where the user right-clicked
+        Input.lastContextMenuWorld = Geometry.screenToWorld({ x: e.clientX, y: e.clientY }, STATE.ui.view);
+    },
+
+    hidePresetMenu: () => {
+        DOM.boardPresetMenu.classList.add('hidden');
+    },
+
+    handleAddPreset: (e) => {
+        const btn = e.currentTarget;
+        const w = parseFloat(btn.dataset.w);
+        const t = parseFloat(btn.dataset.t);
+        const length = 96; // 8 feet default
+        
+        // Use the stored world position
+        const pos = Input.lastContextMenuWorld || { x: 0, y: 0 };
+        const scale = CONFIG.SCALE_PIXELS_PER_INCH;
+        
+        // Create 2D rectangle (Width x Length)
+        const points = [
+            { x: pos.x, y: pos.y },
+            { x: pos.x + w * scale, y: pos.y },
+            { x: pos.x + w * scale, y: pos.y + length * scale },
+            { x: pos.x, y: pos.y + length * scale }
+        ];
+
+        const name = btn.innerText.split(' (')[0];
+        const newShape = ShapeModel.create(points, name);
+        
+        // Set standard thickness based on the preset actuals
+        newShape.thickness = t; 
+        
+        // And recalculate side lengths for the 2D view
+        Geometry.recalculateSideLengths(newShape.points, scale);
+
+        Store.dispatch('SHAPE_ADD', {
+            document: { shapes: [...STATE.document.shapes, newShape] },
+            ui: { selectedShapeId: newShape.id }
+        }, true);
+
+        Input.hidePresetMenu();
+    },
 
     handleKeyDown: (e) => {
         if (e.repeat) return;
