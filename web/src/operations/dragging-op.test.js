@@ -114,4 +114,32 @@ describe('DraggingOp', () => {
             })
         }), true); // Persistence should be true for the Add action
     });
+
+    it('moves the active edge along its normal in pull mode', () => {
+        STATE.ui.dragging = {
+            type: 'EDGE',
+            item: mockShape,
+            edgeIndex: 0,
+            lastPos: { x: 0, y: 0 }
+        };
+
+        const mouseWorld = { x: 0, y: 5 };
+        const mouseScreen = { x: 0, y: 50 };
+
+        DraggingOp.update(mouseWorld, mouseScreen);
+
+        expect(Store.dispatch).toHaveBeenCalledWith('SHAPE_EDGE_DRAG', expect.objectContaining({
+            document: expect.objectContaining({
+                shapes: expect.arrayContaining([
+                    expect.objectContaining({
+                        id: 'shape-1',
+                        points: expect.arrayContaining([
+                            expect.objectContaining({ x: 0, y: 5 }),
+                            expect.objectContaining({ x: 10, y: 5 })
+                        ])
+                    })
+                ])
+            })
+        }));
+    });
 });
