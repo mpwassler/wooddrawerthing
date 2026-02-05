@@ -91,6 +91,27 @@ export class CanvasRenderer {
     }
 
     /**
+     * Draws an arc.
+     * @param {Object} center - {x, y}
+     * @param {number} radius
+     * @param {number} startAngle - Radians
+     * @param {number} endAngle - Radians
+     * @param {string} color
+     * @param {number} width
+     * @param {Array<number>} [dash] - Line dash pattern
+     */
+    drawArc(center, radius, startAngle, endAngle, color, width, dash = []) {
+        if (!center || radius <= 0) return;
+        this.ctx.beginPath();
+        this.ctx.arc(center.x, center.y, radius, startAngle, endAngle);
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = width;
+        this.ctx.setLineDash(dash);
+        this.ctx.stroke();
+        this.ctx.setLineDash([]);
+    }
+
+    /**
      * Draws a filled polygon.
      * @param {Array<Object>} points - Array of {x, y}
      * @param {string} fillColor
