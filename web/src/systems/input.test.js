@@ -210,4 +210,30 @@ describe('Input System', () => {
             }), true);
         });
     });
+
+    describe('Pull Mode', () => {
+        it('should track the hovered edge while in pull mode', () => {
+            STATE.ui.mode = 'PULL';
+            const shape = {
+                id: 'shape-1',
+                closed: true,
+                points: [
+                    { x: 0, y: 0 },
+                    { x: 100, y: 0 },
+                    { x: 100, y: 50 },
+                    { x: 0, y: 50 }
+                ]
+            };
+            STATE.document.projects = [{ id: 'p1', shapes: [shape] }];
+            STATE.document.currentProjectId = 'p1';
+            STATE.ui.selectedShapeId = 'shape-1';
+            STATE.ui.view.zoom = 1;
+            STATE.ui.view.pan = { x: 0, y: 0 };
+
+            Input.handleMouseMove({ clientX: 50, clientY: 3 });
+
+            expect(STATE.ui.hoveredEdgeShapeId).toBe('shape-1');
+            expect(STATE.ui.hoveredEdgeIndex).toBe(0);
+        });
+    });
 });
