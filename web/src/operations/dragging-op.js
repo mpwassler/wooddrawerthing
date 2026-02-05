@@ -60,6 +60,42 @@ export const DraggingOp = {
             });
         }
 
+        else if (dragging.type === 'EDGE') {
+            const shape = dragging.item;
+            const idx = dragging.edgeIndex;
+            if (!shape || idx === null || idx === undefined) return;
+
+            const points = shape.points;
+            if (!points || points.length < 2) return;
+
+            const nextIdx = (idx + 1) % points.length;
+            const p1 = points[idx];
+            const p2 = points[nextIdx];
+            const edgeVec = { x: p2.x - p1.x, y: p2.y - p1.y };
+            const normal = Geometry.normalize({ x: -edgeVec.y, y: edgeVec.x });
+
+            const delta = { x: mouseWorld.x - dragging.lastPos.x, y: mouseWorld.y - dragging.lastPos.y };
+            const offset = Geometry.dot(delta, normal);
+            const move = { x: normal.x * offset, y: normal.y * offset };
+
+            const newPoints = points.map((p, i) => {
+                if (i === idx || i === nextIdx) {
+                    return { ...p, x: p.x + move.x, y: p.y + move.y };
+                }
+                return { ...p };
+            });
+
+            Geometry.recalculateSideLengths(newPoints, CONFIG.SCALE_PIXELS_PER_INCH);
+
+            const newShape = { ...shape, points: newPoints, lastModified: Date.now() };
+            const newShapes = STATE.document.shapes.map(s => s.id === shape.id ? newShape : s);
+
+            Store.dispatch('SHAPE_EDGE_DRAG', {
+                document: { shapes: newShapes },
+                ui: { dragging: { ...dragging, lastPos: { ...mouseWorld }, item: newShape } }
+            });
+        }
+
         else if (dragging.type === 'JOINERY') {
             const { item, shape, offset, listType } = dragging;
             const scale = CONFIG.SCALE_PIXELS_PER_INCH;

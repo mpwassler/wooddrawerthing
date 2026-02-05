@@ -50,7 +50,7 @@ export const STATE = {
         },
 
         dragging: {
-            type: null, // 'SHAPE' | 'JOINERY' | 'THICKNESS'
+            type: null, // 'SHAPE' | 'EDGE' | 'JOINERY' | 'THICKNESS'
             item: null, // Reference or ID
             startPos: { x: 0, y: 0 },
             offset: { x: 0, y: 0 }

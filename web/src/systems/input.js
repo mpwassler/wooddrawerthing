@@ -33,6 +33,22 @@ export const Input = {
         if (!shape || !shape.faceData) return { tenons: [], cutouts: [] };
         return shape.faceData[shape.activeFace || 'FRONT'] || { tenons: [], cutouts: [] };
     },
+    findEdgeHit: (shape, mouseWorld, toleranceWorld) => {
+        if (!shape || !shape.closed || shape.points.length < 2) return null;
+        let bestIdx = null;
+        let bestDist = Infinity;
+        for (let i = 0; i < shape.points.length; i++) {
+            const p1 = shape.points[i];
+            const p2 = shape.points[(i + 1) % shape.points.length];
+            const closest = Geometry.closestPointOnSegment(mouseWorld, p1, p2);
+            const dist = Geometry.dist(mouseWorld, closest);
+            if (dist < toleranceWorld && dist < bestDist) {
+                bestDist = dist;
+                bestIdx = i;
+            }
+        }
+        return bestIdx !== null ? bestIdx : null;
+    },
 
     updateJSONExport: () => {
         const shape = STATE.selectedShape;
@@ -112,6 +128,22 @@ export const Input = {
                     return;
                 }
             }
+
+            // Then check for edge drag on selected shape
+            if (STATE.selectedShape && STATE.selectedShape.closed) {
+                const toleranceWorld = (12 / STATE.ui.view.zoom);
+                const edgeIndex = Input.findEdgeHit(STATE.selectedShape, mouseWorld, toleranceWorld);
+                if (edgeIndex !== null) {
+                    STATE.ui.dragging = {
+                        type: 'EDGE',
+                        item: STATE.selectedShape,
+                        edgeIndex,
+                        lastPos: { ...mouseWorld }
+                    };
+                    DOM.canvas.style.cursor = 'move';
+                    return;
+                }
+            }
             
             // Then check for shape drag
             if (STATE.ui.hoveredShapeId) {
@@ -177,6 +209,9 @@ export const Input = {
                 }
             }
             DocumentOp.updateJSONExport();
+        } else if (ui.dragging.type === 'EDGE') {
+            DocumentOp.updateJSONExport();
+            ProjectOp.calculateTotalBoardFeet();
         } else if (ui.dragging.type === 'JOINERY') {
             DocumentOp.updateJSONExport();
         }
