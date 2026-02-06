@@ -211,6 +211,7 @@ export const DrawingOp = {
                 if (Geometry.dist(mouseScreen, startScreen) < CONFIG.SNAP_RADIUS_SCREEN_PX) {
                     activeDrawing.snapTarget = startPt;
                     activeDrawing.tempLine = { start: activePt, end: startPt };
+                    STATE.requestRender?.();
                     return; 
                 }
             }
@@ -235,6 +236,7 @@ export const DrawingOp = {
             const endPt = { x: activePt.x + dir.x * len, y: activePt.y + dir.y * len };
             activeDrawing.tempLine = { start: activePt, end: endPt };
         }
+        STATE.requestRender?.();
     },
 
     /**

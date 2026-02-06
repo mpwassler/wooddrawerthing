@@ -17,6 +17,33 @@ async function init() {
     // 0. Initialize Store
     Store.init();
 
+    let renderScheduled = false;
+    const renderFrame = () => {
+        ViewController.render();
+
+        if (STATE.renderer && STATE.renderer.render) {
+            STATE.renderer.render();
+        }
+
+        if (STATE.ui.is3DOpen && STATE.renderer3D && STATE.renderer3D.render) {
+            if (STATE.renderer3D.controls) {
+                STATE.renderer3D.controls.update();
+            }
+            STATE.renderer3D.render();
+        }
+    };
+
+    const requestRender = () => {
+        if (renderScheduled) return;
+        renderScheduled = true;
+        requestAnimationFrame(() => {
+            renderScheduled = false;
+            renderFrame();
+        });
+    };
+
+    STATE.requestRender = requestRender;
+
     // 1. Initialize Renderers
     STATE.renderer = new WebGLRenderer(DOM.canvas);
     STATE.renderer.setMode('2D'); 
@@ -27,7 +54,14 @@ async function init() {
     // Wire up 3D assembly persistence
     STATE.renderer3D.transformControls.addEventListener('change', () => {
         ThreedOp.persistTransforms();
+        STATE.requestRender?.();
     });
+
+    if (STATE.renderer3D.controls) {
+        STATE.renderer3D.controls.addEventListener('change', () => {
+            STATE.requestRender?.();
+        });
+    }
     
     STATE.overlay = new CanvasRenderer(DOM.overlay);
 
@@ -42,6 +76,7 @@ async function init() {
     STATE.renderer3D.resize(w * 0.9, h * 0.9); 
     
     STATE.ui.view.pan = { x: w / 2, y: h / 2 };
+    STATE.requestRender?.();
 
     // 4. Bind Event Listeners
     DOM.canvas.addEventListener('click', Input.handleCanvasClick);
@@ -90,6 +125,7 @@ async function init() {
              const rect = DOM.canvas3D.getBoundingClientRect();
              STATE.renderer3D.resize(rect.width, rect.height);
         }
+        STATE.requestRender?.();
     });
     
     // Event Listeners
@@ -139,39 +175,11 @@ async function init() {
     DOM.facePrevBtn.addEventListener('click', () => Input.cycleFace(-1));
     DOM.faceNextBtn.addEventListener('click', () => Input.cycleFace(1));
     
-    // 5. Start Main Loop
-    loop();
-}
-
-let lastSaveTime = 0;
-const SAVE_INTERVAL = 2000; // Auto-save every 2 seconds if changed
-
-let lastLogTime = 0;
-
-function loop() {
-    const now = Date.now();
-    if (now - lastLogTime > 1000) {
-        // console.log("Loop Active. Shapes:", STATE.document.shapes.length);
-        lastLogTime = now;
-    }
-
-    ViewController.render();
-    
-    if (STATE.renderer && STATE.renderer.render) {
-        STATE.renderer.render();
-    }
-    
-    if (STATE.ui.is3DOpen && STATE.renderer3D && STATE.renderer3D.render) {
-        STATE.renderer3D.render();
-    }
-
-    // Auto-save logic
-    if (now - lastSaveTime > SAVE_INTERVAL) {
+    setInterval(() => {
         ProjectOp.saveCurrentProject();
-        lastSaveTime = now;
-    }
-    
-    requestAnimationFrame(loop);
+    }, SAVE_INTERVAL);
 }
+
+const SAVE_INTERVAL = 2000; // Auto-save every 2 seconds if changed
 
 init();

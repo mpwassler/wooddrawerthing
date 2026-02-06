@@ -122,7 +122,12 @@ export class WebGLRenderer {
     
     clear() {
         // Clear 2D immediate objects
-        this.activeObjects.forEach(obj => this.scene.remove(obj));
+        this.activeObjects.forEach(obj => {
+            this.scene.remove(obj);
+            if (obj.geometry) {
+                obj.geometry.dispose();
+            }
+        });
         this.activeObjects = [];
     }
 

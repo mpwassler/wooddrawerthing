@@ -362,9 +362,9 @@ export const Input = {
     refreshView: () => {
         if (STATE.ui.is3DOpen) {
             // Rebuild the 3D scene to reflect geometry changes
-            STATE.renderer3D.clear3D();
             STATE.renderer3D.render3DScene(STATE.document.shapes);
         }
+        STATE.requestRender?.();
     },
 
     // --- UI Routing (Refactored) ---
@@ -522,6 +522,7 @@ export const Input = {
             DOM.btnModeDraw.classList.remove('disabled');
             Input.close3DMode();
         }
+        STATE.requestRender?.();
     },
 
     open3DMode: (rect) => {
@@ -537,12 +538,14 @@ export const Input = {
         STATE.renderer3D.resize(width, height);
         STATE.renderer3D.setMode('3D');
         STATE.renderer3D.render3DScene(STATE.document.shapes, true);
+        STATE.requestRender?.();
     },
 
     close3DMode: () => {
         STATE.ui.is3DOpen = false;
         STATE.renderer3D.setMode('2D'); // Reset to 2D state/cleanup
         STATE.renderer3D.clear3D(); 
+        STATE.requestRender?.();
     },
     
     // Debug

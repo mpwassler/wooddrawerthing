@@ -93,9 +93,9 @@ export const Store = {
         // Skip rebuild for 3D-specific actions where the view is already consistent
         if (STATE.ui.is3DOpen && STATE.renderer3D) {
             const skip3DRebuild = ['SHAPE_TRANSFORM_3D', 'SELECT_SHAPE_3D', 'DESELECT_3D'].includes(action);
+            const shouldRebuild3D = Boolean(payload.document) && !skip3DRebuild;
             
-            if (!skip3DRebuild) {
-                STATE.renderer3D.clear3D();
+            if (shouldRebuild3D) {
                 STATE.renderer3D.render3DScene(STATE.document.shapes);
             }
         }
@@ -104,5 +104,7 @@ export const Store = {
         
         // 3. Notify others
         window.dispatchEvent(new CustomEvent(EVENT_CHANGED, { detail: { action } }));
+
+        STATE.requestRender?.();
     }
 };

@@ -99,6 +99,7 @@ export const SliceOp = {
             
             group.add(mesh);
             SliceOp.previewLine = mesh;
+            STATE.requestRender?.();
         }
     },
 
@@ -107,6 +108,7 @@ export const SliceOp = {
             SliceOp.previewLine.parent.remove(SliceOp.previewLine);
             SliceOp.previewLine.geometry.dispose();
             SliceOp.previewLine = null;
+            STATE.requestRender?.();
         }
         SliceOp.activeCut = null;
     },

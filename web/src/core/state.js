@@ -71,6 +71,7 @@ export const STATE = {
     renderer: null,
     renderer3D: null,
     overlay: null,
+    requestRender: null,
 
     // --- Getters for Convenience ---
     get selectedShape() {
