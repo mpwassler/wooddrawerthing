@@ -4,7 +4,7 @@
  */
 
 import { STATE } from '../core/state.js';
-import * as THREE from 'https://esm.sh/three@0.160.0';
+import * as THREE from 'three';
 import { Geometry } from '../utils/geometry.js';
 import { Store } from '../core/store.js';
 import { CONFIG } from '../core/config.js';
@@ -99,6 +99,7 @@ export const SliceOp = {
             
             group.add(mesh);
             SliceOp.previewLine = mesh;
+            STATE.requestRender?.();
         }
     },
 
@@ -107,6 +108,7 @@ export const SliceOp = {
             SliceOp.previewLine.parent.remove(SliceOp.previewLine);
             SliceOp.previewLine.geometry.dispose();
             SliceOp.previewLine = null;
+            STATE.requestRender?.();
         }
         SliceOp.activeCut = null;
     },

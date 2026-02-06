@@ -3,10 +3,10 @@
  * Implements the Renderer Interface using Three.js for hardware-accelerated 2D/3D graphics.
  */
 
-import * as THREE from 'https://esm.sh/three@0.160.0';
-import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-import { TransformControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/TransformControls.js';
-import { SUBTRACTION, Brush, Evaluator } from 'https://esm.sh/three-bvh-csg@0.0.16';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+import { SUBTRACTION, Brush, Evaluator } from 'https://esm.sh/three-bvh-csg@0.0.16?external=three';
 import { CONFIG } from '../core/config.js';
 import { Geometry } from '../utils/geometry.js';
 
@@ -122,7 +122,12 @@ export class WebGLRenderer {
     
     clear() {
         // Clear 2D immediate objects
-        this.activeObjects.forEach(obj => this.scene.remove(obj));
+        this.activeObjects.forEach(obj => {
+            this.scene.remove(obj);
+            if (obj.geometry) {
+                obj.geometry.dispose();
+            }
+        });
         this.activeObjects = [];
     }
 

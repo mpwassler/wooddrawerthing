@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ThreedOp } from './threed-op.js';
 import { STATE } from '../core/state.js';
 import { Store } from '../core/store.js';
-import * as THREE from 'https://esm.sh/three@0.160.0';
+import * as THREE from 'three';
 
 // Mock Store
 vi.mock('../core/store.js', () => ({
@@ -15,7 +15,7 @@ vi.mock('../core/store.js', () => ({
 }));
 
 // Mock THREE.js
-vi.mock('https://esm.sh/three@0.160.0', () => {
+vi.mock('three', () => {
     const Raycaster = vi.fn();
     Raycaster.prototype.setFromCamera = vi.fn();
     Raycaster.prototype.intersectObjects = vi.fn();

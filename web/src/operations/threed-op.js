@@ -4,7 +4,7 @@
  */
 
 import { STATE } from '../core/state.js';
-import * as THREE from 'https://esm.sh/three@0.160.0';
+import * as THREE from 'three';
 import { DocumentOp } from './document-op.js';
 import { Geometry } from '../utils/geometry.js';
 import { Input } from '../systems/input.js';

@@ -24,6 +24,7 @@ export const ProjectOp = {
         ProjectOp.renderProjectList();
         Input.updateUIState();
         ProjectOp.calculateTotalBoardFeet();
+        STATE.requestRender?.();
     },
 
     createNewProject: async (name) => {
@@ -37,6 +38,7 @@ export const ProjectOp = {
         ProjectOp.selectProject(newProject.id);
         ProjectOp.renderProjectList();
         ProjectOp.calculateTotalBoardFeet();
+        STATE.requestRender?.();
     },
 
     selectProject: (id) => {
@@ -46,6 +48,7 @@ export const ProjectOp = {
         ProjectOp.renderProjectList();
         Input.updateUIState();
         ProjectOp.calculateTotalBoardFeet();
+        STATE.requestRender?.();
     },
 
     saveCurrentProject: async () => {
@@ -65,6 +68,7 @@ export const ProjectOp = {
             ProjectOp.selectProject(STATE.document.projects[0].id);
         }
         ProjectOp.renderProjectList();
+        STATE.requestRender?.();
     },
 
     calculateTotalBoardFeet: () => {
