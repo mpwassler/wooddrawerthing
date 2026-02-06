@@ -18,6 +18,7 @@ import { ProjectOp } from '../operations/project-op.js';
 import { ShapeModel } from '../core/model.js';
 import { DOMRenderer } from './dom-renderer.js';
 import { ThreedOp } from '../operations/threed-op.js';
+import { Slice2DOp } from '../operations/slice2d-op.js';
 import { Store } from '../core/store.js';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -82,6 +83,8 @@ export const Input = {
             const mouseWorld = Geometry.screenToWorld({ x: e.clientX, y: e.clientY }, STATE.ui.view);
             const mouseScreen = { x: e.clientX, y: e.clientY };
             DrawingOp.handleDrawClick(mouseWorld, mouseScreen);
+        } else if (STATE.ui.mode === 'SLICE') {
+            Slice2DOp.handleClick();
         } else if (STATE.ui.mode === 'PULL') {
             return;
         } else {
@@ -175,6 +178,11 @@ export const Input = {
                 DOM.canvas.style.cursor = 'move';
             }
         }
+
+        if (e.button === 0 && STATE.ui.mode === 'SLICE') {
+            const toleranceWorld = (12 / STATE.ui.view.zoom);
+            Slice2DOp.handleMouseDown(mouseWorld, toleranceWorld);
+        }
     },
     
     // ... (keep MouseMove, MouseUp, Wheel, Keys as is) ...
@@ -209,6 +217,9 @@ export const Input = {
             }
         } else if (STATE.ui.mode === 'DRAW') {
             DrawingOp.updatePreview(mouseWorld, mouseScreen);
+        } else if (STATE.ui.mode === 'SLICE') {
+            const toleranceWorld = (12 / STATE.ui.view.zoom);
+            Slice2DOp.handleMouseMove(mouseWorld, toleranceWorld);
         } else {
             SelectionOp.updateHoverState(mouseWorld);
         }
@@ -223,6 +234,12 @@ export const Input = {
             DocumentOp.updateJSONExport();
             ProjectOp.calculateTotalBoardFeet();
             Input.refreshView();
+        } else if (STATE.ui.mode === 'SLICE') {
+            if (STATE.ui.slice2D.isAdjusting) {
+                Slice2DOp.handleMouseUp();
+                Input.ignoreNextClick = true;
+                setTimeout(() => { Input.ignoreNextClick = false; }, 100);
+            }
         } else if (ui.dragging.type === 'SHAPE') {
             const active = ui.dragging.item;
             const isFront = !active.activeFace || active.activeFace === 'FRONT';
@@ -477,15 +494,17 @@ export const Input = {
     },
 
     switchTool: (mode) => {
-        STATE.ui.mode = mode; // 'DRAW' | 'SELECT' | 'PULL'
+        STATE.ui.mode = mode; // 'DRAW' | 'SELECT' | 'PULL' | 'SLICE'
         STATE.ui.drawState = 'IDLE';
         STATE.ui.activeDrawing.points = [];
         STATE.ui.hoveredEdgeIndex = null;
         STATE.ui.hoveredEdgeShapeId = null;
+        Slice2DOp.reset();
         
         DOM.btnModeDraw.classList.toggle('active', mode === 'DRAW');
         DOM.btnModeSelect.classList.toggle('active', mode === 'SELECT');
         DOM.btnModePull.classList.toggle('active', mode === 'PULL');
+        DOM.btnModeSlice.classList.toggle('active', mode === 'SLICE');
         DOM.canvas.style.cursor = mode === 'DRAW' ? 'crosshair' : 'default';
     },
 

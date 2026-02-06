@@ -105,10 +105,52 @@ export const ViewController = {
                 o.drawLine({x: sc.x, y: sc.y - 6}, {x: sc.x, y: sc.y + 6}, CONFIG.COLORS.ALIGNMENT_GUIDE, 1);
             }
         });
+
+        if (STATE.ui.mode === 'SLICE' && STATE.ui.slice2D.activeCut) {
+            const { start, end } = STATE.ui.slice2D.activeCut;
+            const isAdjusting = STATE.ui.slice2D.isAdjusting;
+            o.drawLine(start, end, CONFIG.COLORS.GUIDE_LINE, 2 / STATE.ui.view.zoom, isAdjusting ? [6, 4] : []);
+        }
     },
 
     _drawScreenLayer: (o) => {
         const { view, activeDrawing, mode, drawState } = STATE.ui;
+        if (mode === 'SLICE' && STATE.ui.slice2D.isAdjusting) {
+            const { anchor, edgeDir, cutDir, angleDeg } = STATE.ui.slice2D;
+            if (anchor && edgeDir && cutDir) {
+                const center = Geometry.worldToScreen(anchor, view);
+                const radius = 50;
+                const edgeAngle = Math.atan2(edgeDir.y, edgeDir.x);
+                const cutAngle = Math.atan2(cutDir.y, cutDir.x);
+                const signedAngle = Math.atan2(
+                    edgeDir.x * cutDir.y - edgeDir.y * cutDir.x,
+                    Geometry.dot(edgeDir, cutDir)
+                );
+                const arcEnd = edgeAngle + signedAngle;
+                o.drawArc(center, radius, 0, Math.PI * 2, CONFIG.COLORS.SHAPE_HOVER, 1, [4, 4]);
+                o.drawLine(
+                    center,
+                    { x: center.x + Math.cos(edgeAngle) * radius, y: center.y + Math.sin(edgeAngle) * radius },
+                    CONFIG.COLORS.ALIGNMENT_GUIDE,
+                    2
+                );
+                o.drawLine(
+                    center,
+                    { x: center.x + Math.cos(cutAngle) * radius, y: center.y + Math.sin(cutAngle) * radius },
+                    CONFIG.COLORS.GUIDE_LINE,
+                    2
+                );
+                o.drawArc(center, radius, edgeAngle, arcEnd, CONFIG.COLORS.GUIDE_LINE, 3);
+                const labelAngle = edgeAngle + signedAngle / 2;
+                const labelPos = {
+                    x: center.x + Math.cos(labelAngle) * (radius + 18),
+                    y: center.y + Math.sin(labelAngle) * (radius + 18)
+                };
+                o.drawTextOutlined(`${Math.round(angleDeg)}°`, labelPos, 12, CONFIG.COLORS.TEXT, CONFIG.COLORS.TEXT_BG);
+            }
+            return;
+        }
+
         if (mode !== 'DRAW') return;
 
         const pts = activeDrawing.points;
@@ -134,12 +176,18 @@ export const ViewController = {
         const hoverEdgeActive = STATE.ui.mode === 'PULL'
             && STATE.ui.hoveredEdgeShapeId === shape.id
             && STATE.ui.hoveredEdgeIndex !== null;
+        const sliceEdgeActive = STATE.ui.mode === 'SLICE'
+            && STATE.ui.slice2D.activeShapeId === shape.id
+            && STATE.ui.slice2D.edgeIndex !== null;
         if (shape.closed && shape.points.length > 2) r.drawPolygon(shape.points, isSelected ? CONFIG.COLORS.SHAPE_FILL_SELECTED : CONFIG.COLORS.SHAPE_FILL);
         for (let i = 0; i < shape.points.length; i++) {
             const p1 = shape.points[i], p2 = shape.points[(i + 1) % shape.points.length];
             if (!shape.closed && i === shape.points.length - 1) continue;
             const isHoveredEdge = hoverEdgeActive && i === STATE.ui.hoveredEdgeIndex;
-            r.drawLine(p1, p2, isHoveredEdge ? CONFIG.COLORS.SHAPE_EDGE_HOVER : color, isHoveredEdge ? 4 / zoom : lineWidth);
+            const isSliceEdge = sliceEdgeActive && i === STATE.ui.slice2D.edgeIndex;
+            const edgeColor = (isHoveredEdge || isSliceEdge) ? CONFIG.COLORS.SHAPE_EDGE_HOVER : color;
+            const edgeWidth = (isHoveredEdge || isSliceEdge) ? 4 / zoom : lineWidth;
+            r.drawLine(p1, p2, edgeColor, edgeWidth);
         }
     },
 
